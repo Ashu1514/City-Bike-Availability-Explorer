@@ -1,0 +1,6 @@
+Flask
+requests
+folium
+matplotlib
+plotly
+pandas

@@ -1,0 +1,10 @@
+/*
+Main stylesheet for City Bike Availability Explorer.
+Purpose:
+- Add custom styling
+- Improve Bootstrap layout
+- Style cards, tables, map containers, and forms
+*/
+body {
+    background-color: #f8f9fa;
+}
