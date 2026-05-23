@@ -74,3 +74,46 @@ def search_cities():
         "success": True,
         "data": response_data
     }), 200
+
+
+@api_routes.route("/address-by-coordinates", methods=["GET"])
+def address_by_coordinates():
+    """
+    get full address by geocode coordinates using Nominatim.
+
+    Example:
+    GET /api/address-by-coordinates?lat=48.7262&long=48.7262
+    """
+
+    lat = float(request.args.get("lat", "").strip())
+    lang = float(request.args.get("long", "").strip())
+
+
+    if not lat or not lang:
+        return jsonify({
+            "success": False,
+            "message": "lat and long coordinates is required",
+            "data": None
+        }), 400
+
+    address = get_address_from_coordinates(
+            lat,
+           lang
+        )
+
+
+    if not address:
+        return jsonify({
+            "success": False,
+            "message": "No address found for the given coordinates",
+            "data": None
+        }), 404
+
+    response_data = {
+        "address": address,
+    }
+
+    return jsonify({
+        "success": True,
+        "data": response_data
+    }), 200
