@@ -5,13 +5,13 @@ Purpose:
 - Fetch public GBFS mobility system data
 - Load station information
 - Load station status
-- Process available bikes and docks
-- Add station address using Nominatim
+- Load available bikes
 """
 
 import csv
 import io
 import requests
+import json
 
 
 GBFS_SYSTEMS_CSV_URL = "https://raw.githubusercontent.com/MobilityData/gbfs/master/systems.csv"
@@ -26,9 +26,6 @@ def fetch_gbfs_systems():
 
     try:
         response = requests.get(GBFS_SYSTEMS_CSV_URL, timeout=15)
-
-        print("GBFS systems URL:", response.url)
-        print("GBFS systems status:", response.status_code)
 
         response.raise_for_status()
 
@@ -79,10 +76,8 @@ def find_system_for_city(city_name, country_code=None):
         if country_matches and (
             city_name_lower in location_lower or city_name_lower in name_lower
         ):
-            print("Matched GBFS system:", system)
             return system
 
-    print("No GBFS system found for:", city_name)
     return None
 
 
@@ -96,9 +91,6 @@ def fetch_gbfs_feed_urls(auto_discovery_url):
 
     try:
         response = requests.get(auto_discovery_url, timeout=15)
-
-        print("GBFS discovery URL:", response.url)
-        print("GBFS discovery status:", response.status_code)
 
         response.raise_for_status()
 
@@ -135,9 +127,6 @@ def fetch_station_information(station_information_url):
 
     try:
         response = requests.get(station_information_url, timeout=15)
-
-        print("Station information URL:", response.url)
-        print("Station information status:", response.status_code)
 
         response.raise_for_status()
 
@@ -176,9 +165,6 @@ def fetch_station_status(station_status_url):
 
     try:
         response = requests.get(station_status_url, timeout=15)
-
-        print("Station status URL:", response.url)
-        print("Station status status:", response.status_code)
 
         response.raise_for_status()
 
@@ -280,3 +266,64 @@ def get_stations_for_city(city_name, country_code=None):
         },
         "stations": stations
     }
+
+def get_vehicles_for_city(city_name, country_code=None):
+    """
+    Get vehicles for city.
+
+    This function returns:
+    - vehicle list
+    - vehicle type details
+    - vehicle price plan
+    """
+
+    try:
+        system = find_system_for_city(city_name, country_code)
+
+        if not system:
+            return []
+
+        auto_discovery_url = system.get("auto_discovery_url")
+
+        feed_urls = fetch_gbfs_feed_urls(auto_discovery_url)
+
+        types_url = feed_urls.get("vehicle_types")
+        status_url = feed_urls.get("vehicle_status")
+        pricing_plans_url = feed_urls.get("system_pricing_plans")
+
+        response = requests.get(types_url, timeout=15)
+        response.raise_for_status()
+        data = response.json()
+        types = data.get("data", {}).get("vehicle_types", [])
+        typesDict = {value.get("vehicle_type_id"):value for value in types}
+
+        response = requests.get(pricing_plans_url, timeout=15)
+        response.raise_for_status()
+        data = response.json()
+        plans = data.get("data", {}).get("plans", [])
+        plansDict = {value.get("plan_id"):value for value in plans}
+
+        response = requests.get(status_url, timeout=15)
+        response.raise_for_status()
+        data = response.json()
+        vehicles = data.get("data", {}).get("vehicles", [])
+        for vehicle in vehicles:
+            type_id = vehicle.get("vehicle_type_id")
+            plan_id = vehicle.get("pricing_plan_id")
+            vehicle.update({
+                "vehicle_types": typesDict.get(type_id),
+                "price_plan": plansDict.get(plan_id),
+            })
+
+        return vehicles
+
+    except requests.exceptions.RequestException as error:
+        print("Station status error:", error)
+        return {}
+
+    except ValueError as error:
+        print("Station status JSON parse error:", error)
+        return {}
+
+
+get_vehicles_for_city("Stuttgart", "DE")

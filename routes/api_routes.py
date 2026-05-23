@@ -11,7 +11,7 @@ Purpose:
 
 from flask import Blueprint, jsonify, request
 from services.geocoding_service import search_city
-from services.gbfs_service import get_stations_for_city
+from services.gbfs_service import get_stations_for_city, get_vehicles_for_city
 from services.nominatim_service import get_address_from_coordinates
 
 api_routes = Blueprint("api_routes", __name__, url_prefix="/api")
@@ -63,7 +63,8 @@ def search_cities():
             "name": selected_city.get("name"),
             "country": selected_city.get("country"),
             "latitude": selected_city.get("latitude"),
-            "longitude": selected_city.get("longitude")
+            "longitude": selected_city.get("longitude"),
+            "country_code": selected_city.get("country_code")
         },
         "mobility_system": station_data.get("mobility_system"),
         "summary": station_data.get("summary"),
@@ -111,6 +112,45 @@ def address_by_coordinates():
 
     response_data = {
         "address": address,
+    }
+
+    return jsonify({
+        "success": True,
+        "data": response_data
+    }), 200
+
+@api_routes.route("/vehicles-by-city", methods=["GET"])
+def vehicles_by_city():
+    """
+    get vehicles using city and country_code.
+
+    Example:
+    GET /api/vehicles-by-city?city=stuttgart&country_code=DE
+    """
+
+    city = request.args.get("city", "").strip()
+    country_code = request.args.get("country_code", "").strip()
+
+
+    if not city:
+        return jsonify({
+            "success": False,
+            "message": "city is required",
+            "data": None
+        }), 400
+
+    vehicles = get_vehicles_for_city(city, country_code)
+
+
+    if not vehicles:
+        return jsonify({
+            "success": False,
+            "message": "No vehicles found for the given city",
+            "data": None
+        }), 404
+
+    response_data = {
+        "vehicles": vehicles,
     }
 
     return jsonify({
