@@ -53,6 +53,11 @@ def search_cities():
 
     selected_city = city_results[0]
 
+    station_data = get_stations_for_city(
+        city_name=selected_city.get("name"),
+        country_code=selected_city.get("country_code")
+    )
+
     response_data = {
         "city": {
             "name": selected_city.get("name"),
@@ -60,6 +65,9 @@ def search_cities():
             "latitude": selected_city.get("latitude"),
             "longitude": selected_city.get("longitude")
         },
+        "mobility_system": station_data.get("mobility_system"),
+        "summary": station_data.get("summary"),
+        "stations": station_data.get("stations")
     }
 
     return jsonify({
