@@ -166,6 +166,50 @@ def fetch_station_information(station_information_url):
         return []
 
 
+def fetch_station_status(station_status_url):
+    """
+    Fetch station_status.json.
+    """
+
+    if not station_status_url:
+        return {}
+
+    try:
+        response = requests.get(station_status_url, timeout=15)
+
+        print("Station status URL:", response.url)
+        print("Station status status:", response.status_code)
+
+        response.raise_for_status()
+
+        data = response.json()
+        stations = data.get("data", {}).get("stations", [])
+
+        status_by_station_id = {}
+
+        for station in stations:
+            station_id = station.get("station_id")
+
+            if station_id:
+                status_by_station_id[station_id] = {
+                    "available_bikes": station.get("num_bikes_available"),
+                    "available_docks": station.get("num_docks_available"),
+                    "is_installed": station.get("is_installed"),
+                    "is_renting": station.get("is_renting"),
+                    "is_returning": station.get("is_returning"),
+                    "last_reported": station.get("last_reported")
+                }
+
+        return status_by_station_id
+
+    except requests.exceptions.RequestException as error:
+        print("Station status error:", error)
+        return {}
+
+    except ValueError as error:
+        print("Station status JSON parse error:", error)
+        return {}
+
 
 def get_stations_for_city(city_name, country_code=None):
     """
@@ -198,11 +242,19 @@ def get_stations_for_city(city_name, country_code=None):
     station_status_url = feed_urls.get("station_status")
 
     station_information = fetch_station_information(station_information_url)
+    station_status = fetch_station_status(station_status_url)
 
     stations = []
 
+    total_available_bikes = 0
+    total_available_docks = 0
+
     for station in station_information:
         station_id = station.get("station_id")
+        status = station_status.get(station_id, {})
+
+        available_bikes = status.get("available_bikes") or 0
+        available_docks = status.get("available_docks") or 0
 
         stations.append({
             "station_id": station_id,
@@ -210,7 +262,12 @@ def get_stations_for_city(city_name, country_code=None):
             "latitude": station.get("latitude"),
             "longitude": station.get("longitude"),
             "capacity": station.get("capacity"),
+            "available_bikes": available_bikes,
+            "available_docks": available_docks,
         })
+
+        total_available_bikes += available_bikes
+        total_available_docks += available_docks
 
     return {
         "mobility_system": {
@@ -218,6 +275,8 @@ def get_stations_for_city(city_name, country_code=None):
         },
         "summary": {
             "total_stations_returned": len(stations),
+            "total_available_bikes": total_available_bikes,
+            "total_available_docks": total_available_docks
         },
         "stations": stations
     }
