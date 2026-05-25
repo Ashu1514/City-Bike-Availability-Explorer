@@ -17,6 +17,10 @@ City Bike Availability Explorer is a Flask-based academic project that allows us
 - CSS
 - Bootstrap
 
+# Frontend-Backend Sequence Diagram
+![Frontend-Backend Sequence Diagram](./docs/user_sequence_diagram.jpeg)
+
+
 # How to Start the Project After Cloning
 
 ## Project: City Bike Availability Explorer
