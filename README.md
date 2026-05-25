@@ -20,6 +20,11 @@ City Bike Availability Explorer is a Flask-based academic project that allows us
 # Frontend-Backend Sequence Diagram
 ![Frontend-Backend Sequence Diagram](./docs/user_sequence_diagram.jpeg)
 
+# Database Planning Diagram
+This is a initial plan to save data in database to avoid repeated api calls to GBFS system.
+So we can query databse first to check for availability of data otherwise we will query to GBFS system.
+
+![Database Planning Diagram](./docs/database_planning.jpeg)
 
 # How to Start the Project After Cloning
 
