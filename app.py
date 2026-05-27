@@ -1,5 +1,7 @@
 from flask import Flask, render_template
 from routes.api_routes import api_routes
+from services import gbfs_service
+from services import nominatim_service
 
 app = Flask(__name__)
 
