@@ -1,25 +1,409 @@
-{% extends "base.html" %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>City Bike Explorer</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
 
-{% block content %}
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f4f4;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
 
-<div class="p-4 bg-light rounded">
-    <h1>City Bike Availability Explorer</h1>
+       
+        header {
+            background: #2c7be5;
+            color: white;
+            padding: 10px 20px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+        header h1 { font-size: 18px; }
+        header p  { font-size: 11px; opacity: 0.85; }
 
-    <p>
-        This project helps users search a city, explore public bike-sharing stations,
-        view availability on a map, and save snapshots using SQLite.
-    </p>
+        
+        .controls-bar {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            padding: 10px 20px;
+            background: white;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            flex-shrink: 0;
+        }
 
-    <form method="GET" action="#">
-        <div class="mb-3">
-            <label for="city" class="form-label">Search City</label>
-            <input type="text" class="form-control" id="city" name="city" placeholder="Example: Stuttgart">
-        </div>
+        .search-form {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .search-form input {
+            width: 220px;
+            padding: 8px 12px;
+            font-size: 14px;
+            border: 2px solid #ccc;
+            border-radius: 6px;
+            outline: none;
+        }
+        .search-form input:focus { border-color: #2c7be5; }
+        .search-form button {
+            padding: 8px 18px;
+            background: #2c7be5;
+            color: white;
+            font-size: 14px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .search-form button:hover { background: #1a63c5; }
 
-        <button type="submit" class="btn btn-primary" disabled>
-            Search City - Coming Soon
-        </button>
+        .divider {
+            width: 1px;
+            height: 36px;
+            background: #ddd;
+        }
+
+        
+        .toggle-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .toggle-label { font-size: 13px; color: #555; font-weight: bold; }
+        .toggle-switch {
+            display: flex;
+            background: #eee;
+            border-radius: 20px;
+            padding: 3px;
+            gap: 2px;
+        }
+        .toggle-switch button {
+            padding: 5px 16px;
+            border: none;
+            border-radius: 16px;
+            font-size: 13px;
+            cursor: pointer;
+            background: transparent;
+            color: #666;
+            transition: all 0.2s;
+        }
+        .toggle-switch button.active {
+            background: #2c7be5;
+            color: white;
+            font-weight: bold;
+        }
+
+        
+        .chart-btn {
+            margin-left: auto;    /* pushes to far right */
+            padding: 8px 16px;
+            background: #f0f4ff;
+            color: #2c7be5;
+            border: 2px solid #2c7be5;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .chart-btn:hover {
+            background: #2c7be5;
+            color: white;
+        }
+
+        /* ── error ── */
+        .error {
+            text-align: center;
+            padding: 6px;
+            color: #c0392b;
+            background: #fdecea;
+            font-size: 13px;
+            flex-shrink: 0;
+        }
+
+       
+        .stats {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            padding: 6px;
+            background: #e8f0fe;
+            text-align: center;
+            flex-shrink: 0;
+        }
+        .stat-label { font-size: 11px; color: #555; }
+        .stat-value { font-size: 16px; font-weight: bold; color: #2c7be5; }
+
+        
+        .legend {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 16px;
+            padding: 5px 10px;
+            background: white;
+            font-size: 12px;
+            border-top: 1px solid #eee;
+            flex-shrink: 0;
+            flex-wrap: wrap;
+        }
+        .legend-title { font-weight: bold; color: #333; font-size: 12px; }
+        .legend span { display: flex; align-items: center; gap: 5px; }
+        .dot {
+            width: 11px; height: 11px;
+            border-radius: 50%;
+            display: inline-block;
+            flex-shrink: 0;
+        }
+        .dot.green  { background: #27ae60; }
+        .dot.orange { background: #e67e22; }
+        .dot.red    { background: #e74c3c; }
+
+        
+        .main-area {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+            position: relative;
+        }
+
+       
+        .map-container {
+            flex: 1;
+            overflow: hidden;
+        }
+        .map-container iframe,
+        .map-container div {
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        
+        .chart-panel {
+            width: 0;
+            overflow: hidden;
+            background: white;
+            border-left: 1px solid #ddd;
+            transition: width 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+        .chart-panel.open {
+            width: 380px;
+        }
+        .chart-panel-inner {
+            padding: 16px;
+            width: 380px;       
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        .chart-panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .chart-panel-header h3 {
+            font-size: 15px;
+            color: #333;
+        }
+        .close-chart {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: #888;
+            line-height: 1;
+        }
+        .close-chart:hover { color: #333; }
+
+        .chart-subtitle {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 14px;
+        }
+
+        .no-data-msg {
+            text-align: center;
+            color: #aaa;
+            margin-top: 40px;
+            font-size: 13px;
+        }
+
+        canvas {
+            max-width: 100%;
+        }
+
+        
+        .placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #888;
+        }
+        .placeholder .icon { font-size: 60px; margin-bottom: 16px; }
+        .placeholder p { font-size: 16px; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>🚲 City Bike & Scooter Explorer</h1>
+    <p>Find available bikes and scooters near you</p>
+</header>
+
+
+<div class="controls-bar">
+    <form class="search-form" method="POST">
+        <input type="hidden" name="view_mode" id="hidden_view_mode" value="{{ view_mode }}">
+        <input type="text" name="city"
+               placeholder="🔍 Enter city e.g. Berlin..."
+               value="{{ city }}" required>
+        <button type="submit">Search</button>
     </form>
+
+    <div class="divider"></div>
+
+    <div class="toggle-group">
+        <span class="toggle-label">View:</span>
+        <div class="toggle-switch">
+            <button id="btn-stations"
+                    class="{{ 'active' if view_mode == 'stations' else '' }}"
+                    onclick="switchMode('stations')" type="button">
+                📍 Stations
+            </button>
+            <button id="btn-vehicles"
+                    class="{{ 'active' if view_mode == 'vehicles' else '' }}"
+                    onclick="switchMode('vehicles')" type="button">
+                🚲 Vehicles
+            </button>
+        </div>
+    </div>
+
+    
+    <button class="chart-btn" onclick="toggleChart()" type="button">
+        📊 City Chart
+    </button>
 </div>
 
-{% endblock %}
+{% if error %}
+    <div class="error">⚠️ {{ error }}</div>
+{% endif %}
+
+{% if map_html %}
+<div class="stats">
+    <div>
+        <div class="stat-value">{{ total_stations }}</div>
+        <div class="stat-label">Stations</div>
+    </div>
+    <div>
+        <div class="stat-value">{{ total_bikes }}</div>
+        <div class="stat-label">Bikes Available</div>
+    </div>
+    <div>
+        <div class="stat-value">{{ city }}</div>
+        <div class="stat-label">City</div>
+    </div>
+</div>
+
+<div class="legend">
+    {% if view_mode == "stations" %}
+        <span class="legend-title">Availability:</span>
+        <span><span class="dot green"></span> 4+ bikes</span>
+        <span><span class="dot orange"></span> 1–3 bikes</span>
+        <span><span class="dot red"></span> No bikes</span>
+    {% else %}
+        <span class="legend-title">Vehicle Types:</span>
+        {% for vtype, color in vehicle_colors.items() %}
+            <span>
+                <span class="dot" style="background: {{ color }};"></span>
+                {{ vtype }}
+            </span>
+        {% endfor %}
+    {% endif %}
+</div>
+{% endif %}
+
+
+<div class="main-area">
+
+    
+    <div class="map-container">
+        {% if map_html %}
+            {{ map_html | safe }}
+        {% else %}
+            <div class="placeholder">
+                <div class="icon">🗺️</div>
+                <p>Search for a city above to see available bikes on the map</p>
+            </div>
+        {% endif %}
+    </div>
+
+    
+    <div class="chart-panel" id="chartPanel">
+        <div class="chart-panel-inner">
+            <div class="chart-panel-header">
+                <h3>📊 {{ city if city else 'Station' }} — Bikes per Station</h3>
+                <button class="close-chart" onclick="toggleChart()">✕</button>
+            </div>
+            <p class="chart-subtitle">Number of available bikes at each station (sorted highest first)</p>
+
+            {% if station_chart and station_chart|length > 0 %}
+                <div style="flex:1; overflow-y:auto;">
+                    <canvas id="cityChart"></canvas>
+                </div>
+            {% else %}
+                <div class="no-data-msg">
+                    <p>🔍 Search a city first</p>
+                    <p style="margin-top:8px;">Station bike counts will appear here</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+
+<script>
+// ── Toggle chart panel ──
+function toggleChart() {
+    const panel = document.getElementById('chartPanel');
+    panel.classList.toggle('open');
+}
+
+// ── Load street address from Nominatim on demand ──
+function loadAddress(lat, lon, divId) {
+    const div = document.getElementById(divId);
+    if (!div) return;
+    div.innerHTML = '⏳ Loading address...';
+    fetch('/address?lat=' + lat + '&lon=' + lon)
+        .then(r => r.json())
+        .then(data => {
+            div.innerHTML = '<span style="font-size:12px;">📍 ' + data.address + '</span>';
+        })
+        .catch(() => {
+            div.innerHTML = '<span style="color:red;">❌ Could not load address</span>';
+        });
+}
+
+// ── Toggle map mode ──
+function switchMode(mode) {
+    document.getElementById('hidden_view_mode').value = mode;
+    document.getElementById('btn-stations').classList.toggle('active', mode === 'stations');
+    document.getElementById('btn-vehicles').classList.toggle('active', mode === 'vehicles');
+    const cityInput = document.querySelector('input[name="city"]');
+    if (cityInput && cityInput.value.trim() !== '') {
+        cityInput.closest('form').submit();
+    }
+}
