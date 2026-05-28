@@ -161,41 +161,43 @@ def fetch_station_status(station_status_url):
     """
 
     if not station_status_url:
-        return {}
+        return []
 
     try:
         response = requests.get(station_status_url, timeout=15)
-
         response.raise_for_status()
 
         data = response.json()
         stations = data.get("data", {}).get("stations", [])
 
-        status_by_station_id = {}
+        status_list = []
 
         for station in stations:
             station_id = station.get("station_id")
 
             if station_id:
-                status_by_station_id[station_id] = {
-                    "available_bikes": station.get("num_bikes_available"),
+                status_list.append({
+                    "station_id": station_id,
+                    "available_bikes": station.get(
+                        "num_vehicles_available",
+                        station.get("num_bikes_available", 0)
+                    ),
                     "available_docks": station.get("num_docks_available"),
                     "is_installed": station.get("is_installed"),
                     "is_renting": station.get("is_renting"),
                     "is_returning": station.get("is_returning"),
                     "last_reported": station.get("last_reported")
-                }
+                })
 
-        return status_by_station_id
+        return status_list
 
     except requests.exceptions.RequestException as error:
         print("Station status error:", error)
-        return {}
+        return []
 
     except ValueError as error:
         print("Station status JSON parse error:", error)
-        return {}
-
+        return []
 
 def get_stations_for_city(city_name, country_code=None):
     """
