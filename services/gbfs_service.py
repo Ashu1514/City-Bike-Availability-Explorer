@@ -324,6 +324,3 @@ def get_vehicles_for_city(city_name, country_code=None):
     except ValueError as error:
         print("Station status JSON parse error:", error)
         return {}
-
-
-get_vehicles_for_city("Stuttgart", "DE")
