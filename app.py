@@ -1,4 +1,4 @@
-from flask import Flask, session ,request ,render_template
+from flask import Flask, session ,request ,render_template,jsonify
 from routes.api_routes import api_routes
 from services import gbfs_service
 from services import nominatim_service
@@ -19,6 +19,14 @@ def health_check():
         "message": "City Bike Availability Explorer backend is working"
     }
 
+@app.route("/address")
+def get_address():
+    lat = request.args.get("lat")
+    lon = request.args.get("lon")
+    address = nominatim_service.get_address_from_coordinates(lat, lon)
+    return jsonify({"address": address or "Address not found"})
+
+
 @app.route("/", methods=["GET", "POST"])
 def index():
     map_html       = None
@@ -37,31 +45,29 @@ def index():
         view_mode = request.form.get("view_mode", "stations")
 
         if city:
-            system = gbfs_service.find_system_for_city(city)
-            auto_url = system.get("auto_discovery_url")
+            system = gbfs_service.get_stations_for_city(city)
+            stations = system["stations"]
             if not system:
                 error = f'No bike system found for "{city}". Try another city.'
             else:
                 try:
-                    urls = gbfs_service.fetch_gbfs_feed_urls(auto_url)
-                    stations_url = urls.get("station_information")
-                    stations = gbfs_service.fetch_station_information(stations_url)
-                    if stations:
-                        total_stations = len(stations)
-                        status_url = urls.get("station_status")
-                        status = gbfs_service.fetch_station_status(status_url)
-                        total_bikes    = sum(s["available_bikes"] for s in status)
+                    total_stations = system["summary"]["total_stations_returned"]
+                    print(total_stations)
+                    if total_stations:
+                        total_bikes = system["summary"]["total_available_bikes"]
                         print(total_bikes)
 
                     
 
                         # Station chart data
                         station_chart = [
-                            {"name": s["name"]}
-                            for s in stations 
-
+                            {"name": s["name"][0]["text"], "bikes": s["available_bikes"]}
+                            for s in stations
+                            if s["available_bikes"] > 0
                         ]
                         station_chart.sort(key=lambda x: x["bikes"], reverse=True)
+
+                        map_html = mapbuilder.build_map(stations)
 
 
                 except Exception as e:
@@ -77,8 +83,9 @@ def index():
         error=error,
         city=city,
         total_stations=total_stations,
+        total_bikes = total_bikes,
         view_mode=view_mode,
-        vehicle_colors=vehicle_colors,
+        # vehicle_colors=vehicle_colors,
         station_chart=station_chart,
     )
 

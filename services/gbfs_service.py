@@ -161,35 +161,32 @@ def fetch_station_status(station_status_url):
     """
 
     if not station_status_url:
-        return []
+        return {}
 
     try:
         response = requests.get(station_status_url, timeout=15)
+
         response.raise_for_status()
 
         data = response.json()
         stations = data.get("data", {}).get("stations", [])
 
-        status_list = []
+        status_by_station_id = {}
 
         for station in stations:
             station_id = station.get("station_id")
 
             if station_id:
-                status_list.append({
-                    "station_id": station_id,
-                    "available_bikes": station.get(
-                        "num_vehicles_available",
-                        station.get("num_bikes_available", 0)
-                    ),
+                status_by_station_id[station_id] = {
+                    "available_bikes": station.get("num_bikes_available",station.get("num_vehicles_available")),
                     "available_docks": station.get("num_docks_available"),
                     "is_installed": station.get("is_installed"),
                     "is_renting": station.get("is_renting"),
                     "is_returning": station.get("is_returning"),
                     "last_reported": station.get("last_reported")
-                })
+                }
 
-        return status_list
+        return status_by_station_id
 
     except requests.exceptions.RequestException as error:
         print("Station status error:", error)
@@ -243,6 +240,7 @@ def get_stations_for_city(city_name, country_code=None):
 
         available_bikes = status.get("available_bikes") or 0
         available_docks = status.get("available_docks") or 0
+        is_renting = status.get("is_renting") or False
 
         stations.append({
             "station_id": station_id,
@@ -252,6 +250,7 @@ def get_stations_for_city(city_name, country_code=None):
             "capacity": station.get("capacity"),
             "available_bikes": available_bikes,
             "available_docks": available_docks,
+            "is_renting":is_renting
         })
 
         total_available_bikes += available_bikes

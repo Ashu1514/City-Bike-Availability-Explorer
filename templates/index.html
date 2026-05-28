@@ -260,7 +260,7 @@
 <body>
 
 <header>
-    <h1>🚲 City Bike & Scooter Explorer</h1>
+    <h1>City Bike 🚲 & Scooter Explorer 🛴</h1>
     <p>Find available bikes and scooters near you</p>
 </header>
 
@@ -305,16 +305,16 @@
 {% if map_html %}
 <div class="stats">
     <div>
+        <div class="stat-value">{{ city }}</div>
+        <div class="stat-label">City</div>
+    </div>
+    <div>
         <div class="stat-value">{{ total_stations }}</div>
         <div class="stat-label">Stations</div>
     </div>
     <div>
         <div class="stat-value">{{ total_bikes }}</div>
         <div class="stat-label">Bikes Available</div>
-    </div>
-    <div>
-        <div class="stat-value">{{ city }}</div>
-        <div class="stat-label">City</div>
     </div>
 </div>
 
