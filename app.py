@@ -1,9 +1,12 @@
 from flask import Flask, render_template
 from routes.api_routes import api_routes
+from database.db import init_db
 
 app = Flask(__name__)
 
 app.register_blueprint(api_routes)
+
+init_db()
 
 @app.route("/")
 def home():
