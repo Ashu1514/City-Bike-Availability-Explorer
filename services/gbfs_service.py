@@ -11,7 +11,7 @@ Purpose:
 import csv
 import io
 import requests
-from database.gbfs_repository import check_gbfs_cache_valid, save_gbfs_systems, search_city_gbfs
+from database.gbfs_repository import check_gbfs_cache_valid, save_gbfs_systems, search_city_gbfs, get_feed_urls, save_feed_urls
 
 GBFS_SYSTEMS_CSV_URL = "https://raw.githubusercontent.com/MobilityData/gbfs/master/systems.csv"
 
@@ -72,30 +72,33 @@ def find_system_for_city(city="stuttgart", country_code=None):
         return None
 
 
-def fetch_gbfs_feed_urls(auto_discovery_url):
+def fetch_gbfs_feed_urls(system_id, auto_discovery_url):
     """
     Fetch gbfs.json and extract feed URLs.
     """
 
-    if not auto_discovery_url:
+    if not system_id or not auto_discovery_url:
         return {}
 
     try:
-        response = requests.get(auto_discovery_url, timeout=15)
-
-        response.raise_for_status()
-
-        data = response.json()
-        feeds = data.get("data", {}).get("feeds", [])
-
         feed_urls = {}
 
-        for feed in feeds:
-            feed_name = feed.get("name")
-            feed_url = feed.get("url")
+        feed_urls = get_feed_urls(system_id)
 
-            if feed_name and feed_url:
-                feed_urls[feed_name] = feed_url
+        if len(feed_urls.keys()) <= 0:
+            response = requests.get(auto_discovery_url, timeout=15)
+            response.raise_for_status()
+            data = response.json()
+            feeds = data.get("data", {}).get("feeds", [])
+
+            save_feed_urls(system_id, feeds)
+
+            for feed in feeds:
+                feed_name = feed.get("name")
+                feed_url = feed.get("url")
+
+                if feed_name and feed_url:
+                    feed_urls[feed_name] = feed_url
 
         return feed_urls
 
@@ -212,8 +215,9 @@ def get_stations_for_city(city_name, country_code=None):
         }
 
     auto_discovery_url = system.get("auto_discovery_url")
+    system_id = system.get("system_id")
 
-    feed_urls = fetch_gbfs_feed_urls(auto_discovery_url)
+    feed_urls = fetch_gbfs_feed_urls(system_id, auto_discovery_url)
 
     station_information_url = feed_urls.get("station_information")
     station_status_url = feed_urls.get("station_status")
@@ -275,8 +279,9 @@ def get_vehicles_for_city(city_name, country_code=None):
             return []
 
         auto_discovery_url = system.get("auto_discovery_url")
+        system_id = system.get("system_id")
 
-        feed_urls = fetch_gbfs_feed_urls(auto_discovery_url)
+        feed_urls = fetch_gbfs_feed_urls(system_id, auto_discovery_url)
 
         types_url = feed_urls.get("vehicle_types")
         status_url = feed_urls.get("vehicle_status")

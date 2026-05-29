@@ -96,6 +96,7 @@ def search_city_gbfs(city_name, country_code=None):
     if country_code:
         cursor.execute("""
             SELECT
+                id,
                 system_id,
                 country_code,
                 name,
@@ -117,6 +118,7 @@ def search_city_gbfs(city_name, country_code=None):
     else:
         cursor.execute("""
             SELECT
+                id,
                 system_id,
                 country_code,
                 name,
@@ -141,3 +143,67 @@ def search_city_gbfs(city_name, country_code=None):
     if not row:
         return None
     return dict(row)
+
+def save_feed_urls(system_id, feed_urls):
+    """
+    Save GBFS feed URLs for one system.
+    """
+
+    if not system_id or not feed_urls:
+        return
+
+    connection = get_connection()
+    cursor = connection.cursor()
+    now = get_current_timestamp()
+
+    for feed in feed_urls:
+        feed_name = feed.get("name")
+        feed_url = feed.get("url")
+        cursor.execute("""
+            INSERT INTO gbfs_feed_urls (
+                system_id,
+                feed_name,
+                feed_url,
+                created_at,
+                updated_at
+            )
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(system_id, feed_name)
+            DO UPDATE SET
+                feed_url = excluded.feed_url,
+                updated_at = excluded.updated_at
+        """, (
+            system_id,
+            feed_name,
+            feed_url,
+            now,
+            now
+        ))
+
+    connection.commit()
+    connection.close()
+
+def get_feed_urls(system_id):
+    """
+    Get feed URLs for one system.
+    """
+
+    if not system_id:
+        return {}
+
+    connection = get_connection()
+    cursor = connection.cursor()
+    cursor.execute("""
+        SELECT feed_name, feed_url
+        FROM gbfs_feed_urls
+        WHERE system_id = ?
+    """, (system_id,))
+
+    rows = cursor.fetchall()
+    connection.close()
+    feed_urls = {}
+
+    for row in rows:
+        feed_urls[row["feed_name"]] = row["feed_url"]
+
+    return feed_urls
