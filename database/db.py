@@ -1,5 +1,7 @@
 import sqlite3
 from pathlib import Path
+from datetime import datetime, timezone
+
 
 DB_PATH = Path("database/explorer.db")
 
@@ -11,6 +13,13 @@ def get_connection():
     connection = sqlite3.connect(DB_PATH)
     connection.row_factory = sqlite3.Row
     return connection
+
+
+def get_current_timestamp():
+    """
+    Return current timestamp in ISO format.
+    """
+    return datetime.now(timezone.utc).isoformat()
 
 def init_db():
     """

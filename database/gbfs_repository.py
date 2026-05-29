@@ -1,12 +1,5 @@
-from database.db import get_connection
+from database.db import get_connection, get_current_timestamp
 from datetime import datetime, timedelta, timezone
-
-
-def get_current_timestamp():
-    """
-    Return current timestamp in ISO format.
-    """
-    return datetime.now(timezone.utc).isoformat()
 
 def save_gbfs_systems(systems):
     """

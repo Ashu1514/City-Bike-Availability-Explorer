@@ -11,7 +11,14 @@ Purpose:
 import csv
 import io
 import requests
-from database.gbfs_repository import check_gbfs_cache_valid, save_gbfs_systems, search_city_gbfs, get_feed_urls, save_feed_urls
+from database.gbfs_repository import  ( 
+    check_gbfs_cache_valid, 
+    save_gbfs_systems, 
+    search_city_gbfs, 
+    get_feed_urls, 
+    save_feed_urls ) 
+
+from database.stations import has_station_information, get_station_information, save_station_information
 
 GBFS_SYSTEMS_CSV_URL = "https://raw.githubusercontent.com/MobilityData/gbfs/master/systems.csv"
 
@@ -132,7 +139,7 @@ def fetch_station_information(station_information_url):
         for station in stations:
             cleaned_stations.append({
                 "station_id": station.get("station_id"),
-                "name": station.get("name"),
+                "name": station.get("name")[0].get("text"),
                 "latitude": station.get("lat"),
                 "longitude": station.get("lon"),
                 "capacity": station.get("capacity")
@@ -222,10 +229,14 @@ def get_stations_for_city(city_name, country_code=None):
     station_information_url = feed_urls.get("station_information")
     station_status_url = feed_urls.get("station_status")
 
-    station_information = fetch_station_information(station_information_url)
-    station_status = fetch_station_status(station_status_url)
+    station_information = []
+    if has_station_information(system_id):
+        station_information = get_station_information(system_id)
+    else:
+        station_information = fetch_station_information(station_information_url)
+        save_station_information(system_id, city_name, country_code, station_information)
 
-    stations = []
+    station_status = fetch_station_status(station_status_url)
 
     total_available_bikes = 0
     total_available_docks = 0
@@ -234,32 +245,22 @@ def get_stations_for_city(city_name, country_code=None):
         station_id = station.get("station_id")
         status = station_status.get(station_id, {})
 
-        available_bikes = status.get("available_bikes") or 0
-        available_docks = status.get("available_docks") or 0
+        station["available_bikes"] = status.get("available_bikes") or 0
+        station["available_docks"] = status.get("available_docks") or 0
 
-        stations.append({
-            "station_id": station_id,
-            "name": station.get("name"),
-            "latitude": station.get("latitude"),
-            "longitude": station.get("longitude"),
-            "capacity": station.get("capacity"),
-            "available_bikes": available_bikes,
-            "available_docks": available_docks,
-        })
-
-        total_available_bikes += available_bikes
-        total_available_docks += available_docks
+        total_available_bikes += station.get("available_bikes")
+        total_available_docks += station.get("available_docks")
 
     return {
         "mobility_system": {
             "name": system.get("name")
         },
         "summary": {
-            "total_stations_returned": len(stations),
+            "total_stations_returned": len(station_information),
             "total_available_bikes": total_available_bikes,
             "total_available_docks": total_available_docks
         },
-        "stations": stations
+        "stations": station_information
     }
 
 def get_vehicles_for_city(city_name, country_code=None):
