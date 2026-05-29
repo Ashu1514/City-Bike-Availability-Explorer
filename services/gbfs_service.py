@@ -11,74 +11,65 @@ Purpose:
 import csv
 import io
 import requests
-import json
-
+from database.gbfs_repository import check_gbfs_cache_valid, save_gbfs_systems, search_city_gbfs
 
 GBFS_SYSTEMS_CSV_URL = "https://raw.githubusercontent.com/MobilityData/gbfs/master/systems.csv"
 
 DEFAULT_STATION_LIMIT = 10
 
 
-def fetch_gbfs_systems():
+def find_system_for_city(city="stuttgart", country_code=None):
     """
     Fetch GBFS systems list.
     """
 
     try:
-        response = requests.get(GBFS_SYSTEMS_CSV_URL, timeout=15)
+        if not check_gbfs_cache_valid(5):
+            response = requests.get(GBFS_SYSTEMS_CSV_URL, timeout=15)
 
-        response.raise_for_status()
+            response.raise_for_status()
 
-        csv_file = io.StringIO(response.text)
-        reader = csv.DictReader(csv_file)
+            csv_file = io.StringIO(response.text)
+            reader = csv.DictReader(csv_file)
 
-        systems = []
+            systems = []
 
-        for row in reader:
-            systems.append({
-                "country_code": row.get("Country Code"),
-                "name": row.get("Name"),
-                "location": row.get("Location"),
-                "system_id": row.get("System ID"),
-                "url": row.get("URL"),
-                "auto_discovery_url": row.get("Auto-Discovery URL")
-            })
+            for row in reader:
+                systems.append({
+                    "country_code": row.get("Country Code"),
+                    "name": row.get("Name"),
+                    "location": row.get("Location"),
+                    "system_id": row.get("System ID"),
+                    "url": row.get("URL"),
+                    "auto_discovery_url": row.get("Auto-Discovery URL")
+                })
 
-        return systems
+            save_gbfs_systems(systems)
 
+            for system in systems:
+                location = system.get("location") or ""
+                name = system.get("name") or ""
+                system_country_code = system.get("country_code") or ""
+
+                location_lower = location.lower()
+                name_lower = name.lower()
+
+                country_matches = True
+
+                if country_code:
+                    country_matches = system_country_code.lower() == country_code.lower()
+
+                if country_matches and (
+                    city in location_lower or city in name_lower
+                ):
+                    return system
+
+            return None
+        else:
+            return search_city_gbfs(city, country_code)
     except requests.exceptions.RequestException as error:
         print("GBFS systems list error:", error)
-        return []
-
-
-def find_system_for_city(city_name, country_code=None):
-    """
-    Find matching GBFS system for city.
-    """
-
-    systems = fetch_gbfs_systems()
-
-    city_name_lower = city_name.lower()
-
-    for system in systems:
-        location = system.get("location") or ""
-        name = system.get("name") or ""
-        system_country_code = system.get("country_code") or ""
-
-        location_lower = location.lower()
-        name_lower = name.lower()
-
-        country_matches = True
-
-        if country_code:
-            country_matches = system_country_code.lower() == country_code.lower()
-
-        if country_matches and (
-            city_name_lower in location_lower or city_name_lower in name_lower
-        ):
-            return system
-
-    return None
+        return None
 
 
 def fetch_gbfs_feed_urls(auto_discovery_url):
