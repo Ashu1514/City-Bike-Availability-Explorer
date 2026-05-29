@@ -50,28 +50,6 @@ def save_gbfs_systems(systems):
     connection.commit()
     connection.close()
 
-
-def get_all_gbfs_systems():
-    """
-    Get all GBFS systems from SQLite.
-    """
-    connection = get_connection()
-    cursor = connection.cursor()
-    cursor.execute("""
-        SELECT
-            system_id,
-            country_code,
-            name,
-            location,
-            url,
-            auto_discovery_url
-        FROM gbfs_systems
-    """)
-    rows = cursor.fetchall()
-    connection.close()
-
-    return [dict(row) for row in rows]
-
 def  check_gbfs_cache_valid(max_age_days=5):
     """
     Check if GBFS systems cache exists and is not older than max_age_days.
