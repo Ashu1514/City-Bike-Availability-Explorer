@@ -179,7 +179,7 @@ def fetch_station_status(station_status_url):
 
             if station_id:
                 status_by_station_id[station_id] = {
-                    "available_bikes": station.get("num_bikes_available"),
+                    "available_bikes": station.get("num_bikes_available",station.get("num_vehicles_available")),
                     "available_docks": station.get("num_docks_available"),
                     "is_installed": station.get("is_installed"),
                     "is_renting": station.get("is_renting"),
@@ -191,12 +191,11 @@ def fetch_station_status(station_status_url):
 
     except requests.exceptions.RequestException as error:
         print("Station status error:", error)
-        return {}
+        return []
 
     except ValueError as error:
         print("Station status JSON parse error:", error)
-        return {}
-
+        return []
 
 def get_stations_for_city(city_name, country_code=None):
     """
@@ -247,9 +246,11 @@ def get_stations_for_city(city_name, country_code=None):
 
         station["available_bikes"] = status.get("available_bikes") or 0
         station["available_docks"] = status.get("available_docks") or 0
+        station["is_renting"] = status.get("is_renting") or False
 
         total_available_bikes += station.get("available_bikes")
         total_available_docks += station.get("available_docks")
+
 
     return {
         "mobility_system": {
