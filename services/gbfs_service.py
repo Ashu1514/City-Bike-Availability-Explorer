@@ -110,7 +110,10 @@ def fetch_gbfs_feed_urls(system_id, auto_discovery_url):
             response = requests.get(auto_discovery_url, timeout=15)
             response.raise_for_status()
             data = response.json()
-            feeds = data.get("data", {}).get("feeds", [])
+            if data.get("data", {}).get("en", None) is None:
+                feeds = data.get("data", {}).get("feeds", [])
+            else:
+                feeds = data.get("data", {}).get("en", {}).get("feeds", [])
 
             save_feed_urls(system_id, feeds)
 
@@ -153,7 +156,7 @@ def fetch_station_information(station_information_url):
         for station in stations:
             cleaned_stations.append({
                 "station_id": station.get("station_id"),
-                "name": station.get("name")[0].get("text"),
+                "name": station.get("name")[0].get("text") if isinstance(station.get("name"), list) else station.get("name"),
                 "latitude": station.get("lat"),
                 "longitude": station.get("lon"),
                 "capacity": station.get("capacity")

@@ -63,9 +63,6 @@ def index():
         if city:
             system = gbfs_service.get_stations_for_city(city)
             stations = system["stations"]
-            list=gbfs_service.find_system_for_city(city)
-            url=list["auto_discovery_url"]
-            print(url)
             if not system:
                 error = f'No bike system found for "{city}". Try another city.'
             else:
