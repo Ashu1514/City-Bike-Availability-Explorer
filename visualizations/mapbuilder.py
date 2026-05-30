@@ -88,7 +88,7 @@ def build_vehicle_map(stations, vehicle_type_colors, vtype_names, vehicle_specs)
     )
 
     for station in stations:
-        vtypes = station.get("vehicle_types", [])
+        vtypes = station.get("vehicle_types") or []
         active_types = [vt for vt in vtypes if vt.get("count", 0) > 0]
         bikes = station["available_bikes"]
         lat   = station["latitude"]

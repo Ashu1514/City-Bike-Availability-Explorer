@@ -11,6 +11,7 @@ Purpose:
 import csv
 import io
 import requests
+import json
 from database.gbfs_repository import  ( 
     check_gbfs_cache_valid, 
     save_gbfs_systems, 
@@ -19,6 +20,15 @@ from database.gbfs_repository import  (
     save_feed_urls ) 
 
 from database.stations import has_station_information, get_station_information, save_station_information
+
+from database.vehicles import (
+    get_missing_vehicle_type_ids, 
+    save_vehicle_types, 
+    get_vehicle_types, 
+    get_missing_pricing_plan_ids, 
+    save_pricing_plans, 
+    get_pricing_plans,
+    generate_unique_color_hash)
 
 GBFS_SYSTEMS_CSV_URL = "https://raw.githubusercontent.com/MobilityData/gbfs/master/systems.csv"
 
@@ -67,6 +77,8 @@ def find_system_for_city(city="stuttgart", country_code=None):
 
             save_gbfs_systems(systems)
 
+            filtered_systems= []
+
             for system in systems:
                 location = system.get("location") or ""
                 name = system.get("name") or ""
@@ -83,14 +95,14 @@ def find_system_for_city(city="stuttgart", country_code=None):
                 if country_matches and (
                     city in location_lower or city in name_lower
                 ):
-                    return system
+                    filtered_systems.append(system)
 
-            return None
+            return []
         else:
             return search_city_gbfs(city, country_code)
     except requests.exceptions.RequestException as error:
         print("GBFS systems list error:", error)
-        return None
+        return []
 
 
 def fetch_gbfs_feed_urls(system_id, auto_discovery_url):
@@ -110,7 +122,10 @@ def fetch_gbfs_feed_urls(system_id, auto_discovery_url):
             response = requests.get(auto_discovery_url, timeout=15)
             response.raise_for_status()
             data = response.json()
-            feeds = data.get("data", {}).get("feeds", [])
+            if data.get("data", {}).get("en", None) is None:
+                feeds = data.get("data", {}).get("feeds", [])
+            else:
+                feeds = data.get("data", {}).get("en", {}).get("feeds", [])
 
             save_feed_urls(system_id, feeds)
 
@@ -153,7 +168,7 @@ def fetch_station_information(station_information_url):
         for station in stations:
             cleaned_stations.append({
                 "station_id": station.get("station_id"),
-                "name": station.get("name")[0].get("text"),
+                "name": station.get("name")[0].get("text") if isinstance(station.get("name"), list) else station.get("name"),
                 "latitude": station.get("lat"),
                 "longitude": station.get("lon"),
                 "capacity": station.get("capacity")
@@ -222,9 +237,9 @@ def get_stations_for_city(city_name, country_code=None):
     - stations
     """
 
-    system = find_system_for_city(city_name, country_code)
+    systems = find_system_for_city(city_name, country_code)
 
-    if not system:
+    if len(systems) <= 0:
         return {
             "mobility_system": None,
             "summary": {
@@ -234,50 +249,56 @@ def get_stations_for_city(city_name, country_code=None):
             },
             "stations": []
         }
-
-    auto_discovery_url = system.get("auto_discovery_url")
-    system_id = system.get("system_id")
-
-    feed_urls = fetch_gbfs_feed_urls(system_id, auto_discovery_url)
-
-    station_information_url = feed_urls.get("station_information")
-    station_status_url = feed_urls.get("station_status")
-
-    station_information = []
-    if has_station_information(system_id):
-        station_information = get_station_information(system_id)
-    else:
-        station_information = fetch_station_information(station_information_url)
-        save_station_information(system_id, city_name, country_code, station_information)
-
-    station_status = fetch_station_status(station_status_url)
-
+    
+    all_stations = []
     total_available_bikes = 0
     total_available_docks = 0
 
-    for station in station_information:
-        station_id = station.get("station_id")
-        status = station_status.get(station_id, {})
+    for system in systems:
+        auto_discovery_url = system.get("auto_discovery_url")
+        system_id = system.get("system_id")
 
-        station["available_bikes"] = status.get("available_bikes") or 0
-        station["available_docks"] = status.get("available_docks") or 0
-        station["is_renting"] = status.get("is_renting") or False
-        station["vehicle_types"] = status.get("vehicle_types")
+        feed_urls = fetch_gbfs_feed_urls(system_id, auto_discovery_url)
 
-        total_available_bikes += station.get("available_bikes")
-        total_available_docks += station.get("available_docks")
+        print(f"feed_urls: {len(feed_urls.keys())}")
 
+        if len(feed_urls.keys()) <= 0:
+            continue
+
+        station_information_url = feed_urls.get("station_information")
+        station_status_url = feed_urls.get("station_status")
+
+        station_information = []
+        if has_station_information(system_id):
+            station_information = get_station_information(system_id)
+        else:
+            station_information = fetch_station_information(station_information_url)
+            save_station_information(system_id, city_name, country_code, station_information)
+
+        station_status = fetch_station_status(station_status_url)
+
+        for station in station_information:
+            station_id = station.get("station_id")
+            status = station_status.get(station_id, {})
+
+            station["available_bikes"] = status.get("available_bikes") or 0
+            station["available_docks"] = status.get("available_docks") or 0
+            station["is_renting"] = status.get("is_renting") or False
+            station["vehicle_types"] = status.get("vehicle_types")
+            station["mobility_system"] = system.get("name")
+
+            total_available_bikes += station.get("available_bikes")
+            total_available_docks += station.get("available_docks")
+
+        all_stations = [*all_stations, *station_information]
 
     return {
-        "mobility_system": {
-            "name": system.get("name")
-        },
         "summary": {
-            "total_stations_returned": len(station_information),
+            "total_stations_returned": len(all_stations),
             "total_available_bikes": total_available_bikes,
             "total_available_docks": total_available_docks
         },
-        "stations": station_information
+        "stations": all_stations
     }
 
 def get_vehicles_for_city(city_name, country_code=None):
@@ -291,66 +312,95 @@ def get_vehicles_for_city(city_name, country_code=None):
     """
 
     try:
-        system = find_system_for_city(city_name, country_code)
+        systems = find_system_for_city(city_name, country_code)
 
-        if not system:
-            return  {}, {}, {}
-
-        auto_discovery_url = system.get("auto_discovery_url")
-        system_id = system.get("system_id")
-
-        feed_urls = fetch_gbfs_feed_urls(system_id, auto_discovery_url)
-
-        types_url = feed_urls.get("vehicle_types")
-        status_url = feed_urls.get("vehicle_status")
-        pricing_plans_url = feed_urls.get("system_pricing_plans")
-
-        response = requests.get(types_url, timeout=15)
-        response.raise_for_status()
-        data = response.json()
-        types = data.get("data", {}).get("vehicle_types", [])
-        typesDict = {value.get("vehicle_type_id"):value for value in types}
-
-        vtype_names = {}
-        vehicle_specs = {}
-
-
-        for vt in types:
-            vid = vt.get("vehicle_type_id", "")
-            name = vt.get("name", vid)
-            
-            # Safely handle localized list of strings (e.g. [{'text': 'SCOOTER', 'language': 'en'}])
-            if isinstance(name, list) and len(name) > 0:
-                name = next((n["text"] for n in name if n.get("language") == "en"), name[0].get("text", vid))
-                
-            vtype_names[vid] = name
-            vehicle_specs[vid] = vt
-
+        if len(systems) <= 0:
+            return {}, {}, {}
         
-        vehicle_colors = {
-            vtype_names.get(vid, vid): VEHICLE_TYPE_COLORS.get(vid, DEFAULT_COLOR)
-            for vid in vtype_names
-        }
+        vehicles = []
+        vehicle_type_names = {}
+        vehicle_colors = {}
+        vehicle_types = {}
+        
+        for system in systems:
+            auto_discovery_url = system.get("auto_discovery_url")
+            print(f"auto_discovery_url {auto_discovery_url}")
+            system_id = system.get("system_id")
 
-        response = requests.get(pricing_plans_url, timeout=15)
-        response.raise_for_status()
-        data = response.json()
-        plans = data.get("data", {}).get("plans", [])
-        plansDict = {value.get("plan_id"):value for value in plans}
+            feed_urls = fetch_gbfs_feed_urls(system_id, auto_discovery_url)
+            if len(feed_urls.keys()) <= 0:
+                print(f"auto_discovery_url {auto_discovery_url}")
+                continue
 
-        response = requests.get(status_url, timeout=15)
-        response.raise_for_status()
-        data = response.json()
-        vehicles = data.get("data", {}).get("vehicles", [])
-        for vehicle in vehicles:
-            type_id = vehicle.get("vehicle_type_id")
-            plan_id = vehicle.get("pricing_plan_id")
-            vehicle.update({
-                "vehicle_types": typesDict.get(type_id),
-                "price_plan": plansDict.get(plan_id),
-            })
+            types_url = feed_urls.get("vehicle_types")
+            status_url = feed_urls.get("vehicle_status") or feed_urls.get("free_bike_status")
+            pricing_plans_url = feed_urls.get("system_pricing_plans")
 
-        return   vtype_names, vehicle_specs, vehicle_colors
+            response = requests.get(status_url, timeout=15)
+            response.raise_for_status()
+            data = response.json().get("data", {})
+            vehicles_list = data.get("vehicles", data.get("bikes", []))
+
+            type_ids = [vehicle.get("vehicle_type_id") for vehicle in vehicles_list]
+            missing_ids = get_missing_vehicle_type_ids(system_id, type_ids)
+            types = []
+
+            if len(missing_ids) > 0:
+                response = requests.get(types_url, timeout=15)
+                response.raise_for_status()
+                data = response.json()
+                types = data.get("data", {}).get("vehicle_types", [])
+                for type_ in types:
+                    name = type_.get("name", "")
+                    if isinstance(name, list):
+                        name = next((n["text"] for n in name if n["language"] == "en"), name[0]["text"])
+                    type_.update({
+                        "name": name
+                    })
+                    vehicle_type_names[type_.get("vehicle_type_id", "")] = name
+                   
+                save_vehicle_types(system_id, types)
+            
+            types = get_vehicle_types(system_id)
+            for type_ in types:
+                tid = type_.get("vehicle_type_id", "")
+                vehicle_colors[tid] = type_.get("color_hash", DEFAULT_COLOR)
+                vehicle_types[tid] = type_
+                vehicle_type_names[tid] = type_.get("name", DEFAULT_COLOR)
+
+
+            plan_ids = [vehicle.get("vehicle_type_id") for vehicle in vehicles_list]
+            missing_plan_ids = get_missing_pricing_plan_ids(system_id, plan_ids)
+            plans = []
+
+            if len(missing_plan_ids) > 0:
+                response = requests.get(pricing_plans_url, timeout=15)
+                response.raise_for_status()
+                data = response.json()
+                plans = data.get("data", {}).get("plans", [])
+                for plan in plans:
+                    name = plan.get("name", "")
+                    if isinstance(name, list):
+                        name = next((n["text"] for n in name if n["language"] == "en"), name[0]["text"])
+                    plan.update({
+                        "name": name
+                    })
+                save_pricing_plans(system_id, plans)
+            else:
+                plans = get_pricing_plans(system_id)
+
+            plansDict = {value.get("plan_id"):value for value in plans}
+            
+            for vehicle in vehicles_list:
+                type_id = vehicle.get("vehicle_type_id")
+                plan_id = vehicle.get("pricing_plan_id")
+                vehicle.update({
+                    "vehicle_type": vehicle_types.get(type_id),
+                    "price_plan": plansDict.get(plan_id),
+                })
+            vehicles = [*vehicles, *vehicles_list]
+
+        return  vehicle_type_names, vehicle_types, vehicle_colors
 
     except requests.exceptions.RequestException as error:
         print("Station status error:", error)
@@ -358,42 +408,4 @@ def get_vehicles_for_city(city_name, country_code=None):
 
     except ValueError as error:
         print("Station status JSON parse error:", error)
-        return {}
-    
-
-def get_feeds(gbfs_url):
-    feeds_response = requests.get(gbfs_url).json()
-    data = feeds_response.get("data", {})
-    if "feeds" in data:
-        feeds_list = data["feeds"]
-    else:
-        lang_key = next(iter(data), None)
-        if lang_key and "feeds" in data[lang_key]:
-            feeds_list = data[lang_key]["feeds"]
-        else:
-            return {}
-    return {f["name"]: f["url"] for f in feeds_list}
-
-def fetch_vehicle_data(gbfs_url):
-    feeds = get_feeds(gbfs_url)
-    if "vehicle_types" not in feeds:
         return {}, {}, {}
-
-    vt_data = requests.get(feeds["vehicle_types"]).json()
-    vtype_names   = {}
-    vehicle_specs = {}
-
-    for vt in vt_data["data"]["vehicle_types"]:
-        vid  = vt.get("vehicle_type_id", "")
-        name = vt.get("name", vid)
-        if isinstance(name, list):
-            name = next((n["text"] for n in name if n["language"] == "en"), name[0]["text"])
-        vtype_names[vid]   = name
-        vehicle_specs[vid] = vt
-
-    vehicle_colors = {
-        vtype_names.get(vid, vid): VEHICLE_TYPE_COLORS.get(vid, DEFAULT_COLOR)
-        for vid in vtype_names
-    }
-
-    return vtype_names, vehicle_specs, vehicle_colors
