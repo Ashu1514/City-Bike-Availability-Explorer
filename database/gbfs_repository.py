@@ -102,7 +102,6 @@ def search_city_gbfs(city_name, country_code=None):
                 LOWER(location) LIKE ?
                 OR LOWER(name) LIKE ?
             )
-            LIMIT 1
         """, (
             country_code,
             f"%{city_name_lower}%",
@@ -122,8 +121,6 @@ def search_city_gbfs(city_name, country_code=None):
             WHERE
                 LOWER(location) LIKE ?
                 OR LOWER(name) LIKE ?
-            LIMIT 1
-
         """, (
 
             f"%{city_name_lower}%",
@@ -131,11 +128,11 @@ def search_city_gbfs(city_name, country_code=None):
             f"%{city_name_lower}%"
 
         ))
-    row = cursor.fetchone()
+    rows = cursor.fetchall()
     connection.close()
-    if not row:
+    if len(rows) <= 0:
         return None
-    return dict(row)
+    return [dict(row) for row in rows ]
 
 def save_feed_urls(system_id, feed_urls):
     """
