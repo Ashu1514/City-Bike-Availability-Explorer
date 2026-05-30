@@ -131,7 +131,7 @@ def search_city_gbfs(city_name, country_code=None):
     rows = cursor.fetchall()
     connection.close()
     if len(rows) <= 0:
-        return None
+        return []
     return [dict(row) for row in rows ]
 
 def save_feed_urls(system_id, feed_urls):

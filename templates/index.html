@@ -329,7 +329,7 @@
         {% for vtype, color in vehicle_colors.items() %}
             <span>
                 <span class="dot" style="background: {{ color }};"></span>
-                {{ vtype }}
+                {{ vehicle_type_names.get(vtype) or "-" }}
             </span>
         {% endfor %}
     {% endif %}

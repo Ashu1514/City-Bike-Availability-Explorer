@@ -1,5 +1,6 @@
 from database.db import get_connection, get_current_timestamp
 import json
+import random
 
 def build_in_clause(values):
     """
@@ -24,6 +25,41 @@ def normalize_system_ids(system_ids):
 
     return list(system_ids)
 
+def generate_random_color_hash():
+    """
+    Generate random hex color.
+    Example: #A1B2C3
+    """
+
+    return "#{:06X}".format(random.randint(0, 0xFFFFFF))
+
+
+def color_hash_exists(cursor, color_hash):
+    """
+    Check if color hash already exists in vehicle_types table.
+    """
+
+    cursor.execute("""
+        SELECT 1
+        FROM vehicle_types
+        WHERE color_hash = ?
+        LIMIT 1
+    """, (color_hash,))
+
+    return cursor.fetchone() is not None
+
+
+def generate_unique_color_hash(cursor):
+    """
+    Generate unique color hash that does not already exist in DB.
+    """
+
+    while True:
+        color_hash = generate_random_color_hash()
+
+        if not color_hash_exists(cursor, color_hash):
+            return color_hash
+
 def save_vehicle_types(system_id, vehicle_types):
     """
     Save vehicle types for one GBFS system.
@@ -38,6 +74,13 @@ def save_vehicle_types(system_id, vehicle_types):
     now = get_current_timestamp()
 
     for vehicle_type in vehicle_types:
+        color_hash = generate_unique_color_hash(cursor)
+        raw_json = {
+            **vehicle_type,
+            "system_id": system_id,
+            "color_hash": color_hash
+        }
+
         cursor.execute("""
             INSERT INTO vehicle_types (
                 system_id,
@@ -46,18 +89,23 @@ def save_vehicle_types(system_id, vehicle_types):
                 form_factor,
                 propulsion_type,
                 max_range_meters,
+                color_hash,
                 raw_json,
                 created_at,
                 updated_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(system_id, vehicle_type_id)
             DO UPDATE SET
                 name = excluded.name,
                 form_factor = excluded.form_factor,
                 propulsion_type = excluded.propulsion_type,
                 max_range_meters = excluded.max_range_meters,
-                raw_json = excluded.raw_json,
+                raw_json = json_set(
+                    excluded.raw_json,
+                    '$.color_hash',
+                    vehicle_types.color_hash
+                ),
                 updated_at = excluded.updated_at
         """, (
             system_id,
@@ -66,7 +114,8 @@ def save_vehicle_types(system_id, vehicle_types):
             vehicle_type.get("form_factor"),
             vehicle_type.get("propulsion_type"),
             vehicle_type.get("max_range_meters"),
-            json.dumps(vehicle_type),
+            color_hash,
+            json.dumps(raw_json),
             now,
             now
         ))

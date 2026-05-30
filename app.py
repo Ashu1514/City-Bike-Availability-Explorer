@@ -7,6 +7,8 @@ from visualizations import mapbuilder
 
 app = Flask(__name__)
 
+init_db()
+
 app.register_blueprint(api_routes)
 
 VEHICLE_TYPE_COLORS = {
@@ -52,7 +54,9 @@ def index():
     total_stations = 0
     view_mode      = "stations"
     vehicle_colors = {}
+    vehicle_type_names  = {}
     station_chart  = []
+
 
     
 
@@ -85,15 +89,12 @@ def index():
                         map_html = mapbuilder.build_map(stations)
 
                         if view_mode == "vehicles":
-                            list=gbfs_service.find_system_for_city(city)
-                            url=list["auto_discovery_url"]
-                            vtype_names, vehicle_specs, vehicle_colors = gbfs_service.fetch_vehicle_data(url)
-                            print(vtype_names)
+                            vehicle_type_names, vehicle_types, vehicle_colors = gbfs_service.get_vehicles_for_city(city)
                             map_html = mapbuilder.build_vehicle_map(
                                 stations,
-                                VEHICLE_TYPE_COLORS,
-                                vtype_names,
-                                vehicle_specs,
+                                vehicle_colors,
+                                vehicle_type_names,
+                                vehicle_types,
                             )
                         else:
                             map_html = mapbuilder.build_map(stations)
@@ -117,6 +118,7 @@ def index():
         total_bikes = total_bikes,
         view_mode=view_mode,
         vehicle_colors=vehicle_colors,
+        vehicle_type_names=vehicle_type_names,
         station_chart=station_chart,
     )
 

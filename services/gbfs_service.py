@@ -27,7 +27,8 @@ from database.vehicles import (
     get_vehicle_types, 
     get_missing_pricing_plan_ids, 
     save_pricing_plans, 
-    get_pricing_plans)
+    get_pricing_plans,
+    generate_unique_color_hash)
 
 GBFS_SYSTEMS_CSV_URL = "https://raw.githubusercontent.com/MobilityData/gbfs/master/systems.csv"
 
@@ -259,6 +260,11 @@ def get_stations_for_city(city_name, country_code=None):
 
         feed_urls = fetch_gbfs_feed_urls(system_id, auto_discovery_url)
 
+        print(f"feed_urls: {len(feed_urls.keys())}")
+
+        if len(feed_urls.keys()) <= 0:
+            continue
+
         station_information_url = feed_urls.get("station_information")
         station_status_url = feed_urls.get("station_status")
 
@@ -308,12 +314,13 @@ def get_vehicles_for_city(city_name, country_code=None):
     try:
         systems = find_system_for_city(city_name, country_code)
 
-        print(f"systems {json.dumps(systems, indent=1)}")
-
         if len(systems) <= 0:
-            return []
+            return {}, {}, {}
         
         vehicles = []
+        vehicle_type_names = {}
+        vehicle_colors = {}
+        vehicle_types = {}
         
         for system in systems:
             auto_discovery_url = system.get("auto_discovery_url")
@@ -321,6 +328,9 @@ def get_vehicles_for_city(city_name, country_code=None):
             system_id = system.get("system_id")
 
             feed_urls = fetch_gbfs_feed_urls(system_id, auto_discovery_url)
+            if len(feed_urls.keys()) <= 0:
+                print(f"auto_discovery_url {auto_discovery_url}")
+                continue
 
             types_url = feed_urls.get("vehicle_types")
             status_url = feed_urls.get("vehicle_status") or feed_urls.get("free_bike_status")
@@ -347,12 +357,17 @@ def get_vehicles_for_city(city_name, country_code=None):
                     type_.update({
                         "name": name
                     })
+                    vehicle_type_names[type_.get("vehicle_type_id", "")] = name
+                   
                 save_vehicle_types(system_id, types)
-            else:
-                types = get_vehicle_types(system_id)
+            
+            types = get_vehicle_types(system_id)
+            for type_ in types:
+                tid = type_.get("vehicle_type_id", "")
+                vehicle_colors[tid] = type_.get("color_hash", DEFAULT_COLOR)
+                vehicle_types[tid] = type_
+                vehicle_type_names[tid] = type_.get("name", DEFAULT_COLOR)
 
-                
-            typesDict = {value.get("vehicle_type_id"):value for value in types}
 
             plan_ids = [vehicle.get("vehicle_type_id") for vehicle in vehicles_list]
             missing_plan_ids = get_missing_pricing_plan_ids(system_id, plan_ids)
@@ -380,55 +395,17 @@ def get_vehicles_for_city(city_name, country_code=None):
                 type_id = vehicle.get("vehicle_type_id")
                 plan_id = vehicle.get("pricing_plan_id")
                 vehicle.update({
-                    "vehicle_types": typesDict.get(type_id),
+                    "vehicle_type": vehicle_types.get(type_id),
                     "price_plan": plansDict.get(plan_id),
                 })
             vehicles = [*vehicles, *vehicles_list]
 
-        return  vehicles
+        return  vehicle_type_names, vehicle_types, vehicle_colors
 
     except requests.exceptions.RequestException as error:
         print("Station status error:", error)
-        return  []
+        return  {}, {}, {}
 
     except ValueError as error:
         print("Station status JSON parse error:", error)
-        return []
-    
-
-def get_feeds(gbfs_url):
-    feeds_response = requests.get(gbfs_url).json()
-    data = feeds_response.get("data", {})
-    if "feeds" in data:
-        feeds_list = data["feeds"]
-    else:
-        lang_key = next(iter(data), None)
-        if lang_key and "feeds" in data[lang_key]:
-            feeds_list = data[lang_key]["feeds"]
-        else:
-            return {}
-    return {f["name"]: f["url"] for f in feeds_list}
-
-def fetch_vehicle_data(gbfs_url):
-    feeds = get_feeds(gbfs_url)
-    if "vehicle_types" not in feeds:
         return {}, {}, {}
-
-    vt_data = requests.get(feeds["vehicle_types"]).json()
-    vtype_names   = {}
-    vehicle_specs = {}
-
-    for vt in vt_data["data"]["vehicle_types"]:
-        vid  = vt.get("vehicle_type_id", "")
-        name = vt.get("name", vid)
-        if isinstance(name, list):
-            name = next((n["text"] for n in name if n["language"] == "en"), name[0]["text"])
-        vtype_names[vid]   = name
-        vehicle_specs[vid] = vt
-
-    vehicle_colors = {
-        vtype_names.get(vid, vid): VEHICLE_TYPE_COLORS.get(vid, DEFAULT_COLOR)
-        for vid in vtype_names
-    }
-
-    return vtype_names, vehicle_specs, vehicle_colors
