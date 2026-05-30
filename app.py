@@ -89,9 +89,9 @@ def index():
                         map_html = mapbuilder.build_map(stations)
 
                         if view_mode == "vehicles":
-                            vehicle_type_names, vehicle_types, vehicle_colors = gbfs_service.get_vehicles_for_city(city)
+                            vehicles, vehicle_type_names, vehicle_types, vehicle_colors = gbfs_service.get_vehicles_for_city(city)
                             map_html = mapbuilder.build_vehicle_map(
-                                stations,
+                                vehicles,
                                 vehicle_colors,
                                 vehicle_type_names,
                                 vehicle_types,
