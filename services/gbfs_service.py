@@ -76,6 +76,8 @@ def find_system_for_city(city="stuttgart", country_code=None):
                 })
 
             save_gbfs_systems(systems)
+            print(f"{"*"*10} DB Write op save_gbfs_systems {"*"*10}")
+            
 
             filtered_systems= []
 
@@ -117,6 +119,8 @@ def fetch_gbfs_feed_urls(system_id, auto_discovery_url):
         feed_urls = {}
 
         feed_urls = get_feed_urls(system_id)
+        print(f"{"="*10} DB read op get_feed_urls {"="*10}")
+
 
         if len(feed_urls.keys()) <= 0:
             response = requests.get(auto_discovery_url, timeout=15)
@@ -128,6 +132,7 @@ def fetch_gbfs_feed_urls(system_id, auto_discovery_url):
                 feeds = data.get("data", {}).get("en", {}).get("feeds", [])
 
             save_feed_urls(system_id, feeds)
+            print(f"{"*"*10} DB Write op save_feed_urls {"*"*10}")
 
             for feed in feeds:
                 feed_name = feed.get("name")
@@ -260,8 +265,6 @@ def get_stations_for_city(city_name, country_code=None):
 
         feed_urls = fetch_gbfs_feed_urls(system_id, auto_discovery_url)
 
-        print(f"feed_urls: {len(feed_urls.keys())}")
-
         if len(feed_urls.keys()) <= 0:
             continue
 
@@ -271,9 +274,12 @@ def get_stations_for_city(city_name, country_code=None):
         station_information = []
         if has_station_information(system_id):
             station_information = get_station_information(system_id)
+            print(f"{"="*10} DB Read op get_station_information {system_id} {"="*10}")
         else:
             station_information = fetch_station_information(station_information_url)
-            save_station_information(system_id, city_name, country_code, station_information)
+            if len(station_information) > 0:
+                save_station_information(system_id, city_name, country_code, station_information)
+                print(f"{"*"*10} DB Write op save_station_information {system_id} {"*"*10}")
 
         station_status = fetch_station_status(station_status_url)
 
@@ -324,28 +330,30 @@ def get_vehicles_for_city(city_name, country_code=None):
         
         for system in systems:
             auto_discovery_url = system.get("auto_discovery_url")
-            print(f"auto_discovery_url {auto_discovery_url}")
             system_id = system.get("system_id")
 
             feed_urls = fetch_gbfs_feed_urls(system_id, auto_discovery_url)
             if len(feed_urls.keys()) <= 0:
-                print(f"auto_discovery_url {auto_discovery_url}")
                 continue
 
             types_url = feed_urls.get("vehicle_types")
             status_url = feed_urls.get("vehicle_status") or feed_urls.get("free_bike_status")
             pricing_plans_url = feed_urls.get("system_pricing_plans")
 
-            response = requests.get(status_url, timeout=15)
-            response.raise_for_status()
-            data = response.json().get("data", {})
-            vehicles_list = data.get("vehicles", data.get("bikes", []))
+            vehicles_list = []
+            if not status_url is None:
+                response = requests.get(status_url, timeout=15)
+                response.raise_for_status()
+                data = response.json().get("data", {})
+                vehicles_list = data.get("vehicles", data.get("bikes", []))
 
             type_ids = [vehicle.get("vehicle_type_id") for vehicle in vehicles_list]
             missing_ids = get_missing_vehicle_type_ids(system_id, type_ids)
+            print(f"{"="*10} DB read op get_missing_vehicle_type_ids {"="*10}")
+
             types = []
 
-            if len(missing_ids) > 0:
+            if len(missing_ids) > 0 and not types_url is None:
                 response = requests.get(types_url, timeout=15)
                 response.raise_for_status()
                 data = response.json()
@@ -360,20 +368,24 @@ def get_vehicles_for_city(city_name, country_code=None):
                     vehicle_type_names[type_.get("vehicle_type_id", "")] = name
                    
                 save_vehicle_types(system_id, types)
+                print(f"{"*"*10} DB Write op save_vehicle_types {"*"*10}")
             
             types = get_vehicle_types(system_id)
+            print(f"{"="*10} DB read op get_vehicle_types {"="*10}")
             for type_ in types:
+                print(type_)
                 tid = type_.get("vehicle_type_id", "")
                 vehicle_colors[tid] = type_.get("color_hash", DEFAULT_COLOR)
                 vehicle_types[tid] = type_
                 vehicle_type_names[tid] = type_.get("name", DEFAULT_COLOR)
 
 
-            plan_ids = [vehicle.get("vehicle_type_id") for vehicle in vehicles_list]
-            missing_plan_ids = get_missing_pricing_plan_ids(system_id, plan_ids)
+            plan_ids = [vehicle.get("pricing_plan_id") for vehicle in vehicles_list]
+            missing_plan_ids = get_missing_pricing_plan_ids(plan_ids)
+            print(f"{"="*10} DB read op get_missing_pricing_plan_ids {"="*10}")
             plans = []
 
-            if len(missing_plan_ids) > 0:
+            if len(missing_plan_ids) > 0 and not pricing_plans_url is None:
                 response = requests.get(pricing_plans_url, timeout=15)
                 response.raise_for_status()
                 data = response.json()
@@ -386,10 +398,17 @@ def get_vehicles_for_city(city_name, country_code=None):
                         "name": name
                     })
                 save_pricing_plans(system_id, plans)
+                print(f"{"*"*10} DB Write op save_pricing_plans {"*"*10}")
             else:
                 plans = get_pricing_plans(system_id)
+                print(f"{"="*10} DB read op get_pricing_plans {"="*10}")
+
 
             plansDict = {value.get("plan_id"):value for value in plans}
+            vehicles_list = [
+                v for v in vehicles_list
+                if vehicle_types.get(v.get("vehicle_type_id"))
+            ]
             
             for vehicle in vehicles_list:
                 type_id = vehicle.get("vehicle_type_id")
@@ -399,8 +418,7 @@ def get_vehicles_for_city(city_name, country_code=None):
                     "price_plan": plansDict.get(plan_id),
                 })
             vehicles = [*vehicles, *vehicles_list]
-
-        return  vehicle_type_names, vehicle_types, vehicle_colors
+        return  vehicles, vehicle_type_names, vehicle_types, vehicle_colors
 
     except requests.exceptions.RequestException as error:
         print("Station status error:", error)

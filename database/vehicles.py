@@ -60,12 +60,12 @@ def generate_unique_color_hash(cursor):
         if not color_hash_exists(cursor, color_hash):
             return color_hash
 
-def save_vehicle_types(system_id, vehicle_types):
+def save_vehicle_types(system_id, vehicle_types = []):
     """
     Save vehicle types for one GBFS system.
     """
 
-    if not system_id or not vehicle_types:
+    if not system_id or not len(vehicle_types) > 0:
         return
 
     connection = get_connection()
@@ -142,6 +142,7 @@ def get_vehicle_types(system_ids):
         SELECT raw_json
         FROM vehicle_types
         WHERE system_id IN ({placeholders})
+        AND (LOWER(form_factor) NOT LIKE '%car%')
     """, system_ids)
 
     rows = cursor.fetchall()
@@ -150,12 +151,12 @@ def get_vehicle_types(system_ids):
     return [json.loads(row["raw_json"]) for row in rows]
 
 
-def get_missing_vehicle_type_ids(system_id, required_type_ids):
+def get_missing_vehicle_type_ids(system_id, required_type_ids = []):
     """
     Compare required vehicle type IDs with cached IDs.
     """
 
-    if not system_id or not required_type_ids:
+    if not system_id or not len(required_type_ids) > 0:
         return []
 
     connection = get_connection()
@@ -190,7 +191,7 @@ def save_pricing_plans(system_id, pricing_plans):
     Save pricing plans for one GBFS system.
     """
 
-    if not system_id or not pricing_plans:
+    if not system_id:
         return
 
     connection = get_connection()
@@ -253,13 +254,15 @@ def get_pricing_plans(system_id):
     return [json.loads(row["raw_json"]) for row in rows]
 
 
-def get_missing_pricing_plan_ids(system_id, required_plan_ids):
+def get_missing_pricing_plan_ids(required_plan_ids=[]):
     """
     Compare required pricing plan IDs with cached IDs.
     """
 
-    if not system_id or not required_plan_ids:
+    if not len(required_plan_ids) > 0:
         return []
+    
+    required_plan_ids = [plan_id for plan_id in required_plan_ids if plan_id]
 
     connection = get_connection()
     cursor = connection.cursor()
@@ -269,9 +272,8 @@ def get_missing_pricing_plan_ids(system_id, required_plan_ids):
     cursor.execute(f"""
         SELECT plan_id
         FROM pricing_plans
-        WHERE system_id = ?
-        AND plan_id IN ({placeholders})
-    """, [system_id, *required_plan_ids])
+        WHERE plan_id IN ({placeholders})
+    """, [*required_plan_ids])
 
     rows = cursor.fetchall()
     connection.close()
