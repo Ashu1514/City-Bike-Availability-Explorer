@@ -24,6 +24,20 @@ GBFS_SYSTEMS_CSV_URL = "https://raw.githubusercontent.com/MobilityData/gbfs/mast
 
 DEFAULT_STATION_LIMIT = 10
 
+VEHICLE_TYPE_COLORS = {
+    "EFIT":        "#2980b9",
+    "BOOST":       "#8e44ad",
+    "ICONIC":      "#e91e8c",
+    "AUH Bike":    "#16a085",
+    "eScooter":    "#f39c12",
+    "okaiScooter": "#e67e22",
+    "METRO":       "#27ae60",
+    "FIT":         "#c0392b",
+    "COSMO":       "#1abc9c",
+    "CHLOE":       "#d35400",
+    "ASTRO":       "#7f8c8d",
+}
+DEFAULT_COLOR = "#555555"
 
 def find_system_for_city(city="stuttgart", country_code=None):
     """
@@ -184,7 +198,8 @@ def fetch_station_status(station_status_url):
                     "is_installed": station.get("is_installed"),
                     "is_renting": station.get("is_renting"),
                     "is_returning": station.get("is_returning"),
-                    "last_reported": station.get("last_reported")
+                    "last_reported": station.get("last_reported"),
+                    "vehicle_types": station.get("vehicle_types_available"),
                 }
 
         return status_by_station_id
@@ -247,6 +262,7 @@ def get_stations_for_city(city_name, country_code=None):
         station["available_bikes"] = status.get("available_bikes") or 0
         station["available_docks"] = status.get("available_docks") or 0
         station["is_renting"] = status.get("is_renting") or False
+        station["vehicle_types"] = status.get("vehicle_types")
 
         total_available_bikes += station.get("available_bikes")
         total_available_docks += station.get("available_docks")
@@ -278,7 +294,7 @@ def get_vehicles_for_city(city_name, country_code=None):
         system = find_system_for_city(city_name, country_code)
 
         if not system:
-            return []
+            return  {}, {}, {}
 
         auto_discovery_url = system.get("auto_discovery_url")
         system_id = system.get("system_id")
@@ -294,6 +310,27 @@ def get_vehicles_for_city(city_name, country_code=None):
         data = response.json()
         types = data.get("data", {}).get("vehicle_types", [])
         typesDict = {value.get("vehicle_type_id"):value for value in types}
+
+        vtype_names = {}
+        vehicle_specs = {}
+
+
+        for vt in types:
+            vid = vt.get("vehicle_type_id", "")
+            name = vt.get("name", vid)
+            
+            # Safely handle localized list of strings (e.g. [{'text': 'SCOOTER', 'language': 'en'}])
+            if isinstance(name, list) and len(name) > 0:
+                name = next((n["text"] for n in name if n.get("language") == "en"), name[0].get("text", vid))
+                
+            vtype_names[vid] = name
+            vehicle_specs[vid] = vt
+
+        
+        vehicle_colors = {
+            vtype_names.get(vid, vid): VEHICLE_TYPE_COLORS.get(vid, DEFAULT_COLOR)
+            for vid in vtype_names
+        }
 
         response = requests.get(pricing_plans_url, timeout=15)
         response.raise_for_status()
@@ -313,12 +350,50 @@ def get_vehicles_for_city(city_name, country_code=None):
                 "price_plan": plansDict.get(plan_id),
             })
 
-        return vehicles
+        return   vtype_names, vehicle_specs, vehicle_colors
 
     except requests.exceptions.RequestException as error:
         print("Station status error:", error)
-        return {}
+        return  {}, {}, {}
 
     except ValueError as error:
         print("Station status JSON parse error:", error)
         return {}
+    
+
+def get_feeds(gbfs_url):
+    feeds_response = requests.get(gbfs_url).json()
+    data = feeds_response.get("data", {})
+    if "feeds" in data:
+        feeds_list = data["feeds"]
+    else:
+        lang_key = next(iter(data), None)
+        if lang_key and "feeds" in data[lang_key]:
+            feeds_list = data[lang_key]["feeds"]
+        else:
+            return {}
+    return {f["name"]: f["url"] for f in feeds_list}
+
+def fetch_vehicle_data(gbfs_url):
+    feeds = get_feeds(gbfs_url)
+    if "vehicle_types" not in feeds:
+        return {}, {}, {}
+
+    vt_data = requests.get(feeds["vehicle_types"]).json()
+    vtype_names   = {}
+    vehicle_specs = {}
+
+    for vt in vt_data["data"]["vehicle_types"]:
+        vid  = vt.get("vehicle_type_id", "")
+        name = vt.get("name", vid)
+        if isinstance(name, list):
+            name = next((n["text"] for n in name if n["language"] == "en"), name[0]["text"])
+        vtype_names[vid]   = name
+        vehicle_specs[vid] = vt
+
+    vehicle_colors = {
+        vtype_names.get(vid, vid): VEHICLE_TYPE_COLORS.get(vid, DEFAULT_COLOR)
+        for vid in vtype_names
+    }
+
+    return vtype_names, vehicle_specs, vehicle_colors

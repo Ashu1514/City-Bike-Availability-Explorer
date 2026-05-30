@@ -9,6 +9,21 @@ app = Flask(__name__)
 
 app.register_blueprint(api_routes)
 
+VEHICLE_TYPE_COLORS = {
+    "EFIT":        "#2980b9",
+    "BOOST":       "#8e44ad",
+    "ICONIC":      "#e91e8c",
+    "AUH Bike":    "#16a085",
+    "eScooter":    "#f39c12",
+    "okaiScooter": "#e67e22",
+    "METRO":       "#27ae60",
+    "FIT":         "#c0392b",
+    "COSMO":       "#1abc9c",
+    "CHLOE":       "#d35400",
+    "ASTRO":       "#7f8c8d",
+}
+DEFAULT_COLOR = "#555555"
+
 
 @app.route("/health")
 def health_check():
@@ -48,6 +63,9 @@ def index():
         if city:
             system = gbfs_service.get_stations_for_city(city)
             stations = system["stations"]
+            list=gbfs_service.find_system_for_city(city)
+            url=list["auto_discovery_url"]
+            print(url)
             if not system:
                 error = f'No bike system found for "{city}". Try another city.'
             else:
@@ -58,17 +76,32 @@ def index():
                         total_bikes = system["summary"]["total_available_bikes"]
                         print(total_bikes)
 
-                    
 
                         # Station chart data
                         station_chart = [
-                            {"name": s["name"][0]["text"], "bikes": s["available_bikes"]}
+                            {"name": s['name'], "bikes": s['available_bikes']}
                             for s in stations
-                            if s["available_bikes"] > 0
+                            if s['available_bikes'] > 0
                         ]
                         station_chart.sort(key=lambda x: x["bikes"], reverse=True)
 
                         map_html = mapbuilder.build_map(stations)
+
+                        if view_mode == "vehicles":
+                            list=gbfs_service.find_system_for_city(city)
+                            url=list["auto_discovery_url"]
+                            vtype_names, vehicle_specs, vehicle_colors = gbfs_service.fetch_vehicle_data(url)
+                            print(vtype_names)
+                            map_html = mapbuilder.build_vehicle_map(
+                                stations,
+                                VEHICLE_TYPE_COLORS,
+                                vtype_names,
+                                vehicle_specs,
+                            )
+                        else:
+                            map_html = mapbuilder.build_map(stations)
+                    else:
+                        error = "Found a system but couldn't load station data."
 
 
                 except Exception as e:
@@ -86,11 +119,12 @@ def index():
         total_stations=total_stations,
         total_bikes = total_bikes,
         view_mode=view_mode,
-        # vehicle_colors=vehicle_colors,
+        vehicle_colors=vehicle_colors,
         station_chart=station_chart,
     )
 
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    # app.run(debug=True)
+    app.run(host='127.0.0.1', port=5001, debug=True)
