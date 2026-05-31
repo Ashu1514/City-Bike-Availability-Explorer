@@ -13,7 +13,6 @@ def save_station_information(system_id, city_name, country_code, stations):
     cursor = connection.cursor()
 
     now = get_current_timestamp()
-    print(json.dumps(stations[0]))
     for station in stations:
         cursor.execute("""
             INSERT INTO station_information (

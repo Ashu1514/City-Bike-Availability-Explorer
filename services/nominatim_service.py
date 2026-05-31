@@ -40,9 +40,6 @@ def get_address_from_coordinates(latitude, longitude):
             timeout=10
         )
 
-        print("Nominatim URL:", response.url)
-        print("Nominatim status:", response.status_code)
-
         response.raise_for_status()
 
         data = response.json()
