@@ -83,6 +83,7 @@ def init_db():
             system_id TEXT NOT NULL,
             vehicle_type_id TEXT NOT NULL,
             name TEXT,
+            color_hash TEXT UNIQUE,
             form_factor TEXT,
             propulsion_type TEXT,
             max_range_meters INTEGER,
