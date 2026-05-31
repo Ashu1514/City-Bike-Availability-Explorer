@@ -259,11 +259,16 @@ def get_stations_for_city(city_name, country_code=None):
     total_available_bikes = 0
     total_available_docks = 0
 
+    max_staions = 1000
+
     for system in systems:
         auto_discovery_url = system.get("auto_discovery_url")
         system_id = system.get("system_id")
 
         feed_urls = fetch_gbfs_feed_urls(system_id, auto_discovery_url)
+
+        if len(all_stations) > max_staions:
+            continue
 
         if len(feed_urls.keys()) <= 0:
             continue
@@ -296,7 +301,9 @@ def get_stations_for_city(city_name, country_code=None):
             total_available_bikes += station.get("available_bikes")
             total_available_docks += station.get("available_docks")
 
-        all_stations = [*all_stations, *station_information]
+        remaining_limit = max_staions - len(all_stations)
+        if remaining_limit > 0:
+            all_stations.extend(station_information[:remaining_limit])
 
     return {
         "summary": {
@@ -327,12 +334,17 @@ def get_vehicles_for_city(city_name, country_code=None):
         vehicle_type_names = {}
         vehicle_colors = {}
         vehicle_types = {}
+
+        max_vehicles = 2000
         
         for system in systems:
             auto_discovery_url = system.get("auto_discovery_url")
             system_id = system.get("system_id")
 
             feed_urls = fetch_gbfs_feed_urls(system_id, auto_discovery_url)
+
+            if len(vehicles) > max_vehicles:
+                continue
             if len(feed_urls.keys()) <= 0:
                 continue
 
@@ -371,9 +383,9 @@ def get_vehicles_for_city(city_name, country_code=None):
                 print(f"{"*"*10} DB Write op save_vehicle_types {"*"*10}")
             
             types = get_vehicle_types(system_id)
+
             print(f"{"="*10} DB read op get_vehicle_types {"="*10}")
             for type_ in types:
-                print(type_)
                 tid = type_.get("vehicle_type_id", "")
                 vehicle_colors[tid] = type_.get("color_hash", DEFAULT_COLOR)
                 vehicle_types[tid] = type_
@@ -417,7 +429,11 @@ def get_vehicles_for_city(city_name, country_code=None):
                     "vehicle_type": vehicle_types.get(type_id),
                     "price_plan": plansDict.get(plan_id),
                 })
-            vehicles = [*vehicles, *vehicles_list]
+
+            remaining_limit = max_vehicles - len(vehicles)
+            if remaining_limit > 0:
+                vehicles.extend(vehicles_list[:remaining_limit])
+            
         return  vehicles, vehicle_type_names, vehicle_types, vehicle_colors
 
     except requests.exceptions.RequestException as error:
