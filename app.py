@@ -72,10 +72,10 @@ def index():
             else:
                 try:
                     total_stations = system["summary"]["total_stations_returned"]
-                    print(total_stations)
+                    # print(total_stations)
                     if total_stations:
                         total_bikes = system["summary"]["total_available_bikes"]
-                        print(total_bikes)
+                        # print(total_bikes)
 
 
                         # Station chart data
