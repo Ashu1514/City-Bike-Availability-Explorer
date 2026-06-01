@@ -23,6 +23,8 @@ VEHICLE_TYPE_COLORS = {
     "COSMO":       "#1abc9c",
     "CHLOE":       "#d35400",
     "ASTRO":       "#7f8c8d",
+    "Scooter":     "#476DDA",
+    "Bicycle":     "#BDF6AA"
 }
 DEFAULT_COLOR = "#555555"
 
