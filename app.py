@@ -1,5 +1,4 @@
 from flask import Flask, session ,request ,render_template,jsonify
-from routes.api_routes import api_routes
 from database.db import init_db
 from services import gbfs_service
 from services import nominatim_service
@@ -8,8 +7,6 @@ from visualizations import mapbuilder
 app = Flask(__name__)
 
 init_db()
-
-app.register_blueprint(api_routes)
 
 VEHICLE_TYPE_COLORS = {
     "EFIT":        "#2980b9",
