@@ -346,11 +346,22 @@
     <div class="chart-panel" id="chartPanel">
         <div class="chart-panel-inner">
             <div class="chart-panel-header">
-                <h3>📊 {{ city if city else 'Station' }} — Bikes per Station</h3>
+                <h3>
+                    {% if view_mode == "vehicles" %}
+                    📊 {{ city if city else 'City' }} — Vehicles by Type
+                    {% else %}
+                    📊 {{ city if city else 'Station' }} — Bikes per Station
+                    {% endif %}
+                </h3>
                 <button class="close-chart" onclick="toggleChart()">✕</button>
             </div>
-            <p class="chart-subtitle">Number of available bikes at each station (sorted highest first)</p>
-
+            <p class="chart-subtitle">
+                {% if view_mode == "vehicles" %}
+                Number of available vehicles grouped by vehicle type. Showing top 10 types.
+                {% else %}
+                Number of available bikes at each station, sorted highest first.
+                {% endif %}
+            </p>
             {% if station_chart and station_chart|length > 0 %}
                 <div style="flex:1; overflow-y:auto;">
                     <canvas id="cityChart"></canvas>
@@ -358,7 +369,7 @@
             {% else %}
                 <div class="no-data-msg">
                     <p>🔍 Search a city first</p>
-                    <p style="margin-top:8px;">Station bike counts will appear here</p>
+                    <p style="margin-top:8px;">Charts will appear here</p>
                 </div>
             {% endif %}
         </div>
@@ -403,57 +414,14 @@ function switchMode(mode) {
     }
 }
 
-{% if station_chart and station_chart|length > 0 %}
-const ctx = document.getElementById('cityChart').getContext('2d');
-const labels = {{ station_chart | map(attribute='name') | list | tojson }};
-const data   = {{ station_chart | map(attribute='bikes') | list | tojson }};
-const chartHeight = Math.max(300, labels.length * 30);
-document.getElementById('cityChart').style.height = chartHeight + 'px';
-
-new Chart(ctx, {
-    type: 'bar',
-    data: {
-        labels: labels,
-        datasets: [{
-            label: 'Bikes Available',
-            data: data,
-            backgroundColor: '#2c7be5',
-            borderColor: '#1a63c5',
-            borderWidth: 1,
-            borderRadius: 4,
-        }]
-    },
-    options: {
-        indexAxis: 'y',
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: { display: false },
-            tooltip: {
-                callbacks: {
-                    label: ctx => ` ${ctx.parsed.x} bikes`
-                }
-            }
-        },
-        scales: {
-            x: {
-                beginAtZero: true,
-                title: { display: true, text: 'Bikes Available', font: { size: 11 } },
-                ticks: { font: { size: 10 } }
-            },
-            y: {
-                ticks: {
-                    font: { size: 10 },
-                    callback: function(val, index) {
-                        const name = labels[index];
-                        return name.length > 22 ? name.substring(0, 22) + '…' : name;
-                    }
-                }
-            }
-        }
-    }
-});
-{% endif %}
+    {% if chart_obj %}
+        const ctx = document.getElementById('cityChart').getContext('2d');
+        const chartObj = {{ chart_obj | tojson }};
+        const labels = chartObj?.data?.labels || [];
+        const chartHeight = Math.max(300, labels.length * 30);
+        document.getElementById('cityChart').style.height = chartHeight + 'px';
+        new Chart(ctx, chartObj);
+    {% endif %}
 </script>
 
 </body>
