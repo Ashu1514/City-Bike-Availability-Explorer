@@ -3,6 +3,8 @@ from database.db import init_db
 from services import gbfs_service
 from services import nominatim_service
 from visualizations import mapbuilder
+from visualizations.charts import prepare_station_chart_obj, prepare_vehicle_type_chart_obj
+import json
 
 app = Flask(__name__)
 
@@ -55,9 +57,7 @@ def index():
     vehicle_colors = {}
     vehicle_type_names  = {}
     station_chart  = []
-
-
-    
+    chart_obj = {}
 
     if request.method == "POST":
         city      = request.form.get("city", "").strip()
@@ -78,6 +78,7 @@ def index():
 
 
                         # Station chart data
+                        # chart_obj = prepare_station_chart_obj(stations)
                         station_chart = [
                             {"name": s['name'], "bikes": s['available_bikes']}
                             for s in stations
@@ -95,8 +96,10 @@ def index():
                                 vehicle_type_names,
                                 vehicle_types,
                             )
+                            chart_obj = prepare_vehicle_type_chart_obj(vehicles, vehicle_type_names, vehicle_colors)
                         else:
                             map_html = mapbuilder.build_map(stations)
+                            chart_obj = prepare_station_chart_obj(stations)
                     else:
                         error = "Found a system but couldn't load station data."
 
@@ -119,6 +122,7 @@ def index():
         vehicle_colors=vehicle_colors,
         vehicle_type_names=vehicle_type_names,
         station_chart=station_chart,
+        chart_obj=chart_obj
     )
 
 
