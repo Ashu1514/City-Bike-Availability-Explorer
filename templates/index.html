@@ -17,7 +17,6 @@
             overflow: hidden;
         }
 
-       
         header {
             background: #2c7be5;
             color: white;
@@ -28,7 +27,6 @@
         header h1 { font-size: 18px; }
         header p  { font-size: 11px; opacity: 0.85; }
 
-        
         .controls-bar {
             display: flex;
             align-items: center;
@@ -70,7 +68,6 @@
             background: #ddd;
         }
 
-        
         .toggle-group {
             display: flex;
             align-items: center;
@@ -100,9 +97,8 @@
             font-weight: bold;
         }
 
-        
         .chart-btn {
-            margin-left: auto;    /* pushes to far right */
+            margin-left: auto;
             padding: 8px 16px;
             background: #f0f4ff;
             color: #2c7be5;
@@ -114,12 +110,8 @@
             transition: all 0.2s;
             white-space: nowrap;
         }
-        .chart-btn:hover {
-            background: #2c7be5;
-            color: white;
-        }
+        .chart-btn:hover { background: #2c7be5; color: white; }
 
-        /* ── error ── */
         .error {
             text-align: center;
             padding: 6px;
@@ -129,7 +121,6 @@
             flex-shrink: 0;
         }
 
-       
         .stats {
             display: flex;
             justify-content: center;
@@ -142,7 +133,6 @@
         .stat-label { font-size: 11px; color: #555; }
         .stat-value { font-size: 16px; font-weight: bold; color: #2c7be5; }
 
-        
         .legend {
             display: flex;
             justify-content: center;
@@ -167,7 +157,6 @@
         .dot.orange { background: #e67e22; }
         .dot.red    { background: #e74c3c; }
 
-        
         .main-area {
             flex: 1;
             display: flex;
@@ -175,7 +164,6 @@
             position: relative;
         }
 
-       
         .map-container {
             flex: 1;
             overflow: hidden;
@@ -186,7 +174,6 @@
             height: 100% !important;
         }
 
-        
         .chart-panel {
             width: 0;
             overflow: hidden;
@@ -197,12 +184,10 @@
             flex-direction: column;
             flex-shrink: 0;
         }
-        .chart-panel.open {
-            width: 380px;
-        }
+        .chart-panel.open { width: 380px; }
         .chart-panel-inner {
             padding: 16px;
-            width: 380px;       
+            width: 380px;
             height: 100%;
             display: flex;
             flex-direction: column;
@@ -213,10 +198,7 @@
             align-items: center;
             margin-bottom: 12px;
         }
-        .chart-panel-header h3 {
-            font-size: 15px;
-            color: #333;
-        }
+        .chart-panel-header h3 { font-size: 15px; color: #333; }
         .close-chart {
             background: none;
             border: none;
@@ -226,25 +208,10 @@
             line-height: 1;
         }
         .close-chart:hover { color: #333; }
+        .chart-subtitle { font-size: 12px; color: #888; margin-bottom: 14px; }
+        .no-data-msg { text-align: center; color: #aaa; margin-top: 40px; font-size: 13px; }
+        canvas { max-width: 100%; }
 
-        .chart-subtitle {
-            font-size: 12px;
-            color: #888;
-            margin-bottom: 14px;
-        }
-
-        .no-data-msg {
-            text-align: center;
-            color: #aaa;
-            margin-top: 40px;
-            font-size: 13px;
-        }
-
-        canvas {
-            max-width: 100%;
-        }
-
-        
         .placeholder {
             display: flex;
             flex-direction: column;
@@ -255,18 +222,46 @@
         }
         .placeholder .icon { font-size: 60px; margin-bottom: 16px; }
         .placeholder p { font-size: 16px; }
+
+
+        #loader {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(255,255,255,0.85);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .spinner {
+            width: 48px; height: 48px;
+            border: 5px solid #e0e8ff;
+            border-top: 5px solid #2c7be5;
+            border-radius: 50%;
+            animation: spin 0.9s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        #loader p { color: #2c7be5; font-weight: bold; font-size: 15px; }
     </style>
 </head>
 <body>
+
+
+<div id="loader">
+    <div class="spinner"></div>
+    <p>🔍 Fetching the Data...</p>
+</div>
 
 <header>
     <h1>City Bike 🚲 & Scooter Explorer 🛴</h1>
     <p>Find available bikes and scooters near you</p>
 </header>
 
-
 <div class="controls-bar">
-    <form class="search-form" method="POST">
+    <form class="search-form" method="POST" onsubmit="showLoader()">
         <input type="hidden" name="view_mode" id="hidden_view_mode" value="{{ view_mode }}">
         <input type="text" name="city"
                placeholder="🔍 Enter city e.g. Berlin..."
@@ -292,7 +287,6 @@
         </div>
     </div>
 
-    
     <button class="chart-btn" onclick="toggleChart()" type="button">
         📊 City Chart
     </button>
@@ -336,10 +330,8 @@
 </div>
 {% endif %}
 
-
 <div class="main-area">
 
-    
     <div class="map-container">
         {% if map_html %}
             {{ map_html | safe }}
@@ -351,7 +343,6 @@
         {% endif %}
     </div>
 
-    
     <div class="chart-panel" id="chartPanel">
         <div class="chart-panel-inner">
             <div class="chart-panel-header">
@@ -376,13 +367,17 @@
 </div>
 
 <script>
-// ── Toggle chart panel ──
-function toggleChart() {
-    const panel = document.getElementById('chartPanel');
-    panel.classList.toggle('open');
+
+document.getElementById('loader').style.display = 'none';
+
+function showLoader() {
+    document.getElementById('loader').style.display = 'flex';
 }
 
-// ── Load street address from Nominatim on demand ──
+function toggleChart() {
+    document.getElementById('chartPanel').classList.toggle('open');
+}
+
 function loadAddress(lat, lon, divId) {
     const div = document.getElementById(divId);
     if (!div) return;
@@ -397,24 +392,21 @@ function loadAddress(lat, lon, divId) {
         });
 }
 
-// ── Toggle map mode ──
 function switchMode(mode) {
     document.getElementById('hidden_view_mode').value = mode;
     document.getElementById('btn-stations').classList.toggle('active', mode === 'stations');
     document.getElementById('btn-vehicles').classList.toggle('active', mode === 'vehicles');
     const cityInput = document.querySelector('input[name="city"]');
     if (cityInput && cityInput.value.trim() !== '') {
+        showLoader();
         cityInput.closest('form').submit();
     }
 }
 
 {% if station_chart and station_chart|length > 0 %}
 const ctx = document.getElementById('cityChart').getContext('2d');
-
 const labels = {{ station_chart | map(attribute='name') | list | tojson }};
 const data   = {{ station_chart | map(attribute='bikes') | list | tojson }};
-
-// Height: 30px per bar so long lists scroll nicely
 const chartHeight = Math.max(300, labels.length * 30);
 document.getElementById('cityChart').style.height = chartHeight + 'px';
 
@@ -432,7 +424,7 @@ new Chart(ctx, {
         }]
     },
     options: {
-        indexAxis: 'y',        // horizontal bars — station names on Y axis
+        indexAxis: 'y',
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
@@ -446,17 +438,12 @@ new Chart(ctx, {
         scales: {
             x: {
                 beginAtZero: true,
-                title: {
-                    display: true,
-                    text: 'Bikes Available',
-                    font: { size: 11 }
-                },
+                title: { display: true, text: 'Bikes Available', font: { size: 11 } },
                 ticks: { font: { size: 10 } }
             },
             y: {
                 ticks: {
                     font: { size: 10 },
-                    // Truncate long station names
                     callback: function(val, index) {
                         const name = labels[index];
                         return name.length > 22 ? name.substring(0, 22) + '…' : name;
