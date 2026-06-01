@@ -1,68 +1,69 @@
-City Bike & Scooter Availability Explorer
+# City Bike & Scooter Availability Explorer
 
 A web application which shows live availability of bike and scooter in supported cities via an interactive map.
 
-
-Project Overview
+## Project Overview
 
 The project fetches data in real time from the GBFS (General Bikeshare Feed Specification) which is a free, open data standard provided by operators in bikeshare systems worldwide. Any user can query any city and view availability of bikes and scooters.
 
 
 What All You See On The Web App : 
 
-1. Header
+### 1. Header
 The first thing you will find on this page is the header which states:
 
 City Bike & Scooter Explorer
 Find available bikes and scooters near you
 
 
-2. Controls Bar
+### 2. Controls Bar
 Below the header there is a controls bar consisting of three items:
 
--Search Bar : 
-- Enter any city name into the search box – examples: `Berlin`, `Dubai`, `Stuttgart`
-- Click the "Search" button
-- The map with stations will be loaded
+- Search Bar : 
+   - Enter any city name into the search box – examples: `Berlin`, `Dubai`, `Stuttgart`
+   - Click the "Search" button
+   - The map with stations will be loaded
 
 - Toggle : 
-Two types of views can be toggled on and off:
-1.Stations :  Displays a pin for each station based on its availability 
-2.Vehicles : Displays dots randomly distributed on the map, colored according to their type 
+   Two types of views can be toggled on and off:
+   - 1.Stations :  Displays a pin for each station based on its availability 
+   - 2.Vehicles : Displays dots randomly distributed on the map, colored according to their type 
 
-3. City Chart button
+### 3. City Chart button
 - Pressing it opens up a bar chart window on the right side
 - This chart displays all stations and the amount of bicycles they have for the current city
 - Stations are arranged from highest bike count to lowest
 - Tap it again or click ✕ to close the window
 
-4. Stats Bar
+### 4. Stats Bar
 Upon searching a city, a bar will appear with information regarding the city including : 
 Name of the City |    Number of Stations |    Number of Bikes Available 
 
-5. Legend
+### 5. Legend
 A legend will be displayed just under the stats bar depending on which toggle option is selected:
 
-When Stations toggle is selected:
+**When Stations toggle is selected:**
+   - Green Dot for : 4+ bikes    
+   - Orange Dot for : 1–3 bikes    
+   - Red Dot for : No bikes
 
-Green Dot for : 4+ bikes    Orange Dot for : 1–3 bikes    Red Dot for : No bikes
-
-
-When Vehicles toggle is selected:
-
-Blue for : EFIT   Green for : METRO    Yellow for : eScooter and so on 
+**When Vehicles toggle is selected *(Dynamic Legend)*:**
+   - Blue for : EFIT   
+   - Green for : METRO    
+   - Yellow for : eScooter and so on 
+   - ...
 
 Every color denotes a certain type of vehicle.
 
-6. The Map
+### 6. The Map
 The largest portion of the page constitutes an **interactive map**, which uses the OpenStreetMap data.
 
-What is possible within the map:
+***What is possible within the map:***
 - 🖱️ **Zooming** by scrolling
 - 🖱️ **Moving around** by clicking and dragging
 - 📍 Clicking on any of the pins or dots opens up its information box
 
-7. Station Pins (Stations Mode)
+### 7. Station Pins (Stations Mode)
 
 All stations are represented by **colored pins** on the map:
 
@@ -75,11 +76,11 @@ Upon clicking the pin, a pop-up with the following information appears:
 📦 Total capacity
 ✅ Open for renting
 
-📍 Load Street Address 
-
+[ 📍 Load Street Address ]
+```
 Clicking the Load Street Address button allows loading the actual address of the location 
 
-8. Vehicle Dots (Vehicles Mode)
+### 8. Vehicle Dots (Vehicles Mode)
 
 With Vehicles toggle selected, each station displays **randomly distributed colored dots** instead of a single pin:
 
@@ -87,7 +88,7 @@ With Vehicles toggle selected, each station displays **randomly distributed colo
 - The amount of dots is equal to the number of the vehicle present at a certain station
 
 Upon clicking on a cluster of dots, the following popup appears with information about each type of vehicle:
-
+```
 📍 Place Name
 
 🟣 Naame of the Vehicle 
@@ -99,8 +100,8 @@ Upon clicking on a cluster of dots, the following popup appears with information
    👤 Riders       
 
 [ 📍 Load Street Address ]
-
-9. Bar Chart Panel
+```
+### 9. Bar Chart Panel
 
 By clicking 📊 City Chart, an interactive panel slides out from the right-hand side of the application.
 
