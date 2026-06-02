@@ -1,13 +1,15 @@
 import folium
 import random
-
+from app import myloc
 DEFAULT_COLOR = "#555555"
 
 
-def build_map(stations):
+
+
+def build_map(stations=[]):
     """Stations mode — color pins by bike availability."""
-    avg_lat = sum(s['latitude'] for s in stations) / len(stations)
-    avg_lon = sum(s['longitude'] for s in stations) / len(stations)
+    avg_lat = sum(s['latitude'] for s in stations) / len(stations) if len(stations) > 0 else myloc[0] or 0
+    avg_lon = sum(s['longitude'] for s in stations) / len(stations) if len(stations) > 0 else myloc[1] or 0
 
     m = folium.Map(location=[avg_lat, avg_lon], zoom_start=13)
 
