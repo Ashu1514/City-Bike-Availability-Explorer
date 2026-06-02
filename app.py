@@ -4,7 +4,7 @@ from services import gbfs_service
 from services import nominatim_service
 from visualizations import mapbuilder
 from visualizations.charts import prepare_station_chart_obj, prepare_vehicle_type_chart_obj
-import json
+import geocoder
 
 app = Flask(__name__)
 
@@ -27,6 +27,7 @@ VEHICLE_TYPE_COLORS = {
 }
 DEFAULT_COLOR = "#555555"
 
+myloc = geocoder.ip('me').latlng
 
 @app.route("/health")
 def health_check():
@@ -48,7 +49,7 @@ def get_address():
 
 @app.route("/", methods=["GET", "POST"])
 def index():
-    map_html       = None
+    map_html       = mapbuilder.build_map([])
     error          = None
     city           = ""
     total_bikes    = 0
