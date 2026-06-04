@@ -1,15 +1,14 @@
 from flask import Flask, session ,request ,render_template,jsonify
-from routes.api_routes import api_routes
 from database.db import init_db
 from services import gbfs_service
 from services import nominatim_service
 from visualizations import mapbuilder
+from visualizations.charts import prepare_station_chart_obj, prepare_vehicle_type_chart_obj
+import geocoder
 
 app = Flask(__name__)
 
 init_db()
-
-app.register_blueprint(api_routes)
 
 VEHICLE_TYPE_COLORS = {
     "EFIT":        "#2980b9",
@@ -28,6 +27,7 @@ VEHICLE_TYPE_COLORS = {
 }
 DEFAULT_COLOR = "#555555"
 
+myloc = geocoder.ip('me').latlng
 
 @app.route("/health")
 def health_check():
@@ -49,7 +49,7 @@ def get_address():
 
 @app.route("/", methods=["GET", "POST"])
 def index():
-    map_html       = None
+    map_html       = mapbuilder.build_map([])
     error          = None
     city           = ""
     total_bikes    = 0
@@ -58,9 +58,7 @@ def index():
     vehicle_colors = {}
     vehicle_type_names  = {}
     station_chart  = []
-
-
-    
+    chart_obj = {}
 
     if request.method == "POST":
         city      = request.form.get("city", "").strip()
@@ -81,6 +79,7 @@ def index():
 
 
                         # Station chart data
+                        # chart_obj = prepare_station_chart_obj(stations)
                         station_chart = [
                             {"name": s['name'], "bikes": s['available_bikes']}
                             for s in stations
@@ -98,8 +97,10 @@ def index():
                                 vehicle_type_names,
                                 vehicle_types,
                             )
+                            chart_obj = prepare_vehicle_type_chart_obj(vehicles, vehicle_type_names, vehicle_colors)
                         else:
                             map_html = mapbuilder.build_map(stations)
+                            chart_obj = prepare_station_chart_obj(stations)
                     else:
                         error = "Found a system but couldn't load station data."
 
@@ -122,6 +123,7 @@ def index():
         vehicle_colors=vehicle_colors,
         vehicle_type_names=vehicle_type_names,
         station_chart=station_chart,
+        chart_obj=chart_obj
     )
 
 
