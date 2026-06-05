@@ -245,6 +245,38 @@
         }
         @keyframes spin { to { transform: rotate(360deg); } }
         #loader p { color: #2c7be5; font-weight: bold; font-size: 15px; }
+
+
+       
+        /* ── filter dropdown ── */
+        .filter-dropdown {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .filter-dropdown label {
+            font-size: 13px;
+            color: #555;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+        .filter-dropdown select {
+            width: 250px;
+            padding: 6px 28px 6px 10px;
+            font-size: 13px;
+            border: 2px solid #ccc;
+            border-radius: 16px;
+            background: #eee url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23666'/%3E%3C/svg%3E") no-repeat right 10px center;
+            background-size: 8px;
+            appearance: none;
+            -webkit-appearance: none;
+            cursor: pointer;
+            color: #444;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .filter-dropdown select:focus { border-color: #2c7be5; }
+
     </style>
 </head>
 <body>
@@ -291,20 +323,20 @@
         </div>
     </div>
 
-    <!-- <div class="divider"></div>
-    
-    <div id="list1" class="dropdown-check-list" tabindex="100">
-        <span class="anchor">Select Fruits</span>
-        <ul class="items">
-            <li><input type="checkbox" />Apple </li>
-            <li><input type="checkbox" />Orange</li>
-            <li><input type="checkbox" />Grapes </li>
-            <li><input type="checkbox" />Berry </li>
-            <li><input type="checkbox" />Mango </li>
-            <li><input type="checkbox" />Banana </li>
-            <li><input type="checkbox" />Tomato</li>
-        </ul>
-    </div> -->
+
+    <div class="divider"></div>
+
+    <div class="filter-dropdown">
+        <label>Providers:</label>
+        <select id="filter-select" name="filter_option" onchange="applyFilter(this.value)">
+            <option value="all" selected>All</option>
+            <option value="option1">Option 1</option>
+            <option value="option2">Option 2</option>
+            <option value="option3">Option 3</option>
+            <option value="option4">Option 4</option>
+            <option value="option5">Option 5</option>
+        </select>
+    </div>
 
     <button class="chart-btn" onclick="toggleChart()" type="button">
         📊 City Chart
