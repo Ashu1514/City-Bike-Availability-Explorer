@@ -263,6 +263,10 @@
 <div class="controls-bar">
     <form class="search-form" method="POST" onsubmit="showLoader()">
         <input type="hidden" name="view_mode" id="hidden_view_mode" value="{{ view_mode }}">
+        <input type="hidden" name="selected_vehicle_type_ids" id="selected_vehicle_type_ids"
+            value="{{ selected_vehicle_type_ids }}">
+        <input type="hidden" name="vehicle_filter_applied" id="vehicle_filter_applied"
+            value="{{ '1' if vehicle_filter_applied else '0' }}">
         <input type="text" name="city"
                placeholder="🔍 Enter city e.g. Berlin..."
                value="{{ city }}" required>
@@ -286,6 +290,21 @@
             </button>
         </div>
     </div>
+
+    <!-- <div class="divider"></div>
+    
+    <div id="list1" class="dropdown-check-list" tabindex="100">
+        <span class="anchor">Select Fruits</span>
+        <ul class="items">
+            <li><input type="checkbox" />Apple </li>
+            <li><input type="checkbox" />Orange</li>
+            <li><input type="checkbox" />Grapes </li>
+            <li><input type="checkbox" />Berry </li>
+            <li><input type="checkbox" />Mango </li>
+            <li><input type="checkbox" />Banana </li>
+            <li><input type="checkbox" />Tomato</li>
+        </ul>
+    </div> -->
 
     <button class="chart-btn" onclick="toggleChart()" type="button">
         📊 City Chart
@@ -322,6 +341,7 @@
         <span class="legend-title">Vehicle Types:</span>
         {% for vtype, color in vehicle_colors.items() %}
             <span>
+                <input type="checkbox" class="vehicle-type-filter" value="{{ vtype }}" {% if not vehicle_filter_applied or vtype in selected_vehicle_type_ids %}checked{% endif %}  onchange="updateVehicles()" />
                 <span class="dot" style="background: {{ color }};"></span>
                 {{ vehicle_type_names.get(vtype) or "-" }}
             </span>
@@ -405,6 +425,16 @@ function loadAddress(lat, lon, divId) {
 
 function switchMode(mode) {
     document.getElementById('hidden_view_mode').value = mode;
+    const filterAppliedInput = document.getElementById("vehicle_filter_applied");
+    const selectedTypesInput = document.getElementById("selected_vehicle_type_ids");
+
+    if (filterAppliedInput) {
+        filterAppliedInput.value = "0";
+    }
+
+    if (selectedTypesInput) {
+        selectedTypesInput.value = "";
+    }
     document.getElementById('btn-stations').classList.toggle('active', mode === 'stations');
     document.getElementById('btn-vehicles').classList.toggle('active', mode === 'vehicles');
     const cityInput = document.querySelector('input[name="city"]');
@@ -422,6 +452,27 @@ function switchMode(mode) {
         document.getElementById('cityChart').style.height = chartHeight + 'px';
         new Chart(ctx, chartObj);
     {% endif %}
+            
+    function getSelectedVehicleTypes() {
+        return Array.from(document.querySelectorAll("input.vehicle-type-filter:checked"))
+            .map(input => input.value);
+    }
+
+    function updateVehicles() {
+        const selectedTypes = getSelectedVehicleTypes();
+
+        document.getElementById("hidden_view_mode").value = "vehicles";
+        document.getElementById("vehicle_filter_applied").value = "1";
+        document.getElementById("selected_vehicle_type_ids").value = selectedTypes.join(",");
+        const form = document.querySelector(".search-form");
+
+        if (form) {
+            showLoader();
+            form.submit();
+        }
+
+    }
+
 </script>
 
 </body>

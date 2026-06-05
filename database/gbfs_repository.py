@@ -1,5 +1,6 @@
 from database.db import get_connection, get_current_timestamp
 from datetime import datetime, timedelta, timezone
+from sqlite3 import OperationalError
 
 def save_gbfs_systems(systems):
     """
@@ -47,29 +48,31 @@ def  check_gbfs_cache_valid(max_age_days=5):
     """
     Check if GBFS systems cache exists and is not older than max_age_days.
     """
-
-    connection = get_connection()
-    cursor = connection.cursor()
-
-    cursor.execute("""
-        SELECT updated_at
-        FROM gbfs_systems
-        ORDER BY updated_at DESC
-        LIMIT 1
-    """)
-    row = cursor.fetchone()
-    connection.close()
-
-    if not row or not row["updated_at"]:
-        return False
     try:
-        last_updated_at = datetime.fromisoformat(row["updated_at"])
-    except ValueError:
-        return False
-    
-    cache_expiry_time = datetime.now(timezone.utc) - timedelta(days=max_age_days)
+        connection = get_connection()
+        cursor = connection.cursor()
 
-    return last_updated_at >= cache_expiry_time
+        cursor.execute("""
+            SELECT updated_at
+            FROM gbfs_systems
+            ORDER BY updated_at DESC
+            LIMIT 1
+        """)
+        row = cursor.fetchone()
+        connection.close()
+
+        if not row or not row["updated_at"]:
+            return False
+        try:
+            last_updated_at = datetime.fromisoformat(row["updated_at"])
+        except ValueError:
+            return False
+        
+        cache_expiry_time = datetime.now(timezone.utc) - timedelta(days=max_age_days)
+
+        return last_updated_at >= cache_expiry_time
+    except OperationalError:
+        return False
 
 def search_city_gbfs(city_name, country_code=None):
     """
