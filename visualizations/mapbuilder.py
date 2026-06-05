@@ -8,8 +8,8 @@ DEFAULT_COLOR = "#555555"
 
 def build_map(stations=[]):
     """Stations mode — color pins by bike availability."""
-    avg_lat = sum(s['latitude'] for s in stations) / len(stations) if len(stations) > 0 else myloc[0] or 0
-    avg_lon = sum(s['longitude'] for s in stations) / len(stations) if len(stations) > 0 else myloc[1] or 0
+    avg_lat = sum(s['latitude'] for s in stations) / len(stations) if len(stations) > 0 else myloc[0] or 1
+    avg_lon = sum(s['longitude'] for s in stations) / len(stations) if len(stations) > 0 else myloc[1] or 1
 
 
     if len(stations) != 0:

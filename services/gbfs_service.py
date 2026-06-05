@@ -101,7 +101,7 @@ def find_system_for_city(city="stuttgart", country_code=None):
                 ):
                     filtered_systems.append(system)
 
-            return []
+            return filtered_systems
         else:
             return search_city_gbfs(city, country_code)
     except requests.exceptions.RequestException as error:
@@ -345,8 +345,6 @@ def get_vehicles_for_city(city_name, country_code=None):
 
             feed_urls = fetch_gbfs_feed_urls(system_id, auto_discovery_url)
 
-            if len(vehicles) > max_vehicles:
-                continue
             if len(feed_urls.keys()) <= 0:
                 continue
 
@@ -361,6 +359,10 @@ def get_vehicles_for_city(city_name, country_code=None):
                 data = response.json().get("data", {})
                 vehicles_list = data.get("vehicles", data.get("bikes", []))
 
+            remaining_limit = max_vehicles - len(vehicles)
+            if remaining_limit > 0:
+                vehicles.extend(vehicles_list[:remaining_limit])
+
             type_ids = [vehicle.get("vehicle_type_id") for vehicle in vehicles_list]
             missing_ids = get_missing_vehicle_type_ids(system_id, type_ids)
             print(f"{"="*10} DB read op get_missing_vehicle_type_ids {"="*10}")
@@ -373,11 +375,11 @@ def get_vehicles_for_city(city_name, country_code=None):
                 data = response.json()
                 types = data.get("data", {}).get("vehicle_types", [])
                 for type_ in types:
-                    name = type_.get("name", "")
+                    name = type_.get("name", "E-SCOOTER")
                     if isinstance(name, list):
                         name = next((n["text"] for n in name if n["language"] == "en"), name[0]["text"])
                     type_.update({
-                        "name": name
+                        "name": name or "E-SCOOTER"
                     })
                     vehicle_type_names[type_.get("vehicle_type_id", "")] = name
                    
@@ -385,14 +387,18 @@ def get_vehicles_for_city(city_name, country_code=None):
                 print(f"{"*"*10} DB Write op save_vehicle_types {"*"*10}")
             
             types = get_vehicle_types(system_id)
-
             print(f"{"="*10} DB read op get_vehicle_types {"="*10}")
-            for type_ in types:
-                tid = type_.get("vehicle_type_id", "")
+
+            typeDict = { type_.get("vehicle_type_id"):type_ for type_ in types }
+
+            for vehicle in vehicles:
+                tid = vehicle.get("vehicle_type_id", "")
+                if tid not in type_ids:
+                    continue
+                type_ = typeDict.get(tid)
                 vehicle_colors[tid] = type_.get("color_hash", DEFAULT_COLOR)
                 vehicle_types[tid] = type_
-                vehicle_type_names[tid] = type_.get("name", DEFAULT_COLOR)
-
+                vehicle_type_names[tid] = type_.get("name", "E-SCOOTER")
 
             plan_ids = [vehicle.get("pricing_plan_id") for vehicle in vehicles_list]
             missing_plan_ids = get_missing_pricing_plan_ids(plan_ids)
@@ -431,11 +437,6 @@ def get_vehicles_for_city(city_name, country_code=None):
                     "vehicle_type": vehicle_types.get(type_id),
                     "price_plan": plansDict.get(plan_id),
                 })
-
-            remaining_limit = max_vehicles - len(vehicles)
-            if remaining_limit > 0:
-                vehicles.extend(vehicles_list[:remaining_limit])
-            
         return  vehicles, vehicle_type_names, vehicle_types, vehicle_colors
 
     except requests.exceptions.RequestException as error:
