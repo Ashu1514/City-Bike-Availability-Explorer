@@ -299,6 +299,8 @@
             value="{{ selected_vehicle_type_ids }}">
         <input type="hidden" name="vehicle_filter_applied" id="vehicle_filter_applied"
             value="{{ '1' if vehicle_filter_applied else '0' }}">
+        <input type="hidden" type="text" name="selected_system_id" id="selected_system_id" value="{{ selected_system_id }}"
+            required>
         <input type="text" name="city"
                placeholder="🔍 Enter city e.g. Berlin..."
                value="{{ city }}" required>
@@ -328,13 +330,13 @@
 
     <div class="filter-dropdown">
         <label>Providers:</label>
-        <select id="filter-select" name="filter_option" onchange="applyFilter(this.value)">
-            <option value="all" selected>All</option>
-            <option value="option1">Option 1</option>
-            <option value="option2">Option 2</option>
-            <option value="option3">Option 3</option>
-            <option value="option4">Option 4</option>
-            <option value="option5">Option 5</option>
+        <select id="filter-select" name="filter_option" onchange="applySystemFilter(this.value)" value="{{ 'all' if selected_system_id is none or selected_system_id == 'None' else selected_system_id }}">
+            <option value="all" {% if not selected_system_id or selected_system_id is none or selected_system_id == 'None' or selected_system_id == 'all' %}selected{% endif %} >All</option>
+            {% for id in systems %}
+               
+                <option value="{{id}}" {% if selected_system_id == id %}selected{% endif %} >{{systems.get(id)}}</option>
+               
+            {% endfor %}
         </select>
     </div>
 
@@ -432,7 +434,6 @@
 <script>
 
 document.getElementById('loader').style.display = 'none';
-
 function showLoader() {
     document.getElementById('loader').style.display = 'flex';
 }
@@ -503,6 +504,16 @@ function switchMode(mode) {
             form.submit();
         }
 
+    }
+
+    function applySystemFilter(value){
+        document.getElementById("selected_system_id").value = value;
+        const form = document.querySelector(".search-form");
+
+        if (form) {
+            showLoader();
+            form.submit();
+        }
     }
 
 </script>
