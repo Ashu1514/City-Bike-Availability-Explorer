@@ -74,7 +74,7 @@ def  check_gbfs_cache_valid(max_age_days=5):
     except OperationalError:
         return False
 
-def search_city_gbfs(city_name, country_code=None):
+def search_city_gbfs(city_name, country_code=None, system_id=None):
     """
     Get one GBFS system from SQLite by city name and optional country code.
     Matching checks:
@@ -89,7 +89,23 @@ def search_city_gbfs(city_name, country_code=None):
     city_name_lower = city_name.lower()
     connection = get_connection()
     cursor = connection.cursor()
-    if country_code:
+    if system_id:
+        print("system_id", system_id)
+        cursor.execute("""
+            SELECT
+                id,
+                system_id,
+                country_code,
+                name,
+                location,
+                url,
+                auto_discovery_url
+            FROM gbfs_systems
+            WHERE system_id = ?
+        """, (
+            system_id,
+        ))
+    elif country_code:
         cursor.execute("""
             SELECT
                 id,

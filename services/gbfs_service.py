@@ -51,7 +51,7 @@ VEHICLE_TYPE_COLORS = {
 }
 DEFAULT_COLOR = "#555555"
 
-def find_system_for_city(city="stuttgart", country_code=None):
+def find_system_for_city(city="stuttgart", country_code=None, system_id=None):
     """
     Fetch GBFS systems list.
     """
@@ -82,28 +82,30 @@ def find_system_for_city(city="stuttgart", country_code=None):
             
 
             filtered_systems= []
-
-            for system in systems:
+             
+            for system in systems:  
                 location = system.get("location") or ""
-                name = system.get("name") or ""
                 system_country_code = system.get("country_code") or ""
+                id = system.get("system_id")
 
                 location_lower = location.lower()
-                name_lower = name.lower()
 
                 country_matches = True
 
-                if country_code:
-                    country_matches = system_country_code.lower() == country_code.lower()
-
-                if country_matches and (
-                    city in location_lower or city in name_lower
-                ):
+                if system_id and system_id == id:
                     filtered_systems.append(system)
+                else:
+                    if country_code:
+                        country_matches = system_country_code.lower() == country_code.lower()
+
+                    if country_matches and city in location_lower :
+                        filtered_systems.append(system)
 
             return filtered_systems
         else:
-            return search_city_gbfs(city, country_code)
+            print(f"{"="*10} DB read op search_city_gbfs {"="*10}")
+            return search_city_gbfs(city, country_code, system_id)
+            
     except requests.exceptions.RequestException as error:
         print("GBFS systems list error:", error)
         return []
@@ -234,7 +236,7 @@ def fetch_station_status(station_status_url):
         print("Station status JSON parse error:", error)
         return []
 
-def get_stations_for_city(city_name, country_code=None):
+def get_stations_for_city(city_name, country_code=None, selected_system_id=None):
     """
     Get stations for city.
 
@@ -244,9 +246,11 @@ def get_stations_for_city(city_name, country_code=None):
     - stations
     """
 
-    systems = find_system_for_city(city_name, country_code)
+    systems = find_system_for_city(city_name, country_code, selected_system_id)
 
-    if len(systems) <= 0:
+    systemsList = find_system_for_city(city_name, country_code)
+
+    if len(systemsList) <= 0:
         return {
             "mobility_system": None,
             "summary": {
@@ -254,7 +258,8 @@ def get_stations_for_city(city_name, country_code=None):
                 "total_available_bikes": 0,
                 "total_available_docks": 0
             },
-            "stations": []
+            "stations": [],
+            "systems": []
         }
     
     all_stations = []
@@ -313,10 +318,11 @@ def get_stations_for_city(city_name, country_code=None):
             "total_available_bikes": total_available_bikes,
             "total_available_docks": total_available_docks
         },
-        "stations": all_stations
+        "stations": all_stations,
+        "systems": systemsList
     }
 
-def get_vehicles_for_city(city_name, country_code=None):
+def get_vehicles_for_city(city_name, country_code=None, selected_system_id=None):
     """
     Get vehicles for city.
 
@@ -327,7 +333,7 @@ def get_vehicles_for_city(city_name, country_code=None):
     """
 
     try:
-        systems = find_system_for_city(city_name, country_code)
+        systems = find_system_for_city(city_name, country_code, system_id=selected_system_id)
 
         if len(systems) <= 0:
             return {}, {}, {}

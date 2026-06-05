@@ -1,8 +1,9 @@
 import folium
 import random
-from app import myloc
-DEFAULT_COLOR = "#555555"
+import geocoder
 
+myloc = geocoder.ip('me').latlng
+DEFAULT_COLOR = "#555555"
 
 
 
