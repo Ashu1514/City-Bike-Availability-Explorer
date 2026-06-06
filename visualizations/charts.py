@@ -1,7 +1,5 @@
 from collections import Counter
 
-from collections import Counter
-
 
 def prepare_vehicle_type_chart_obj(
     vehicles,
@@ -28,15 +26,17 @@ def prepare_vehicle_type_chart_obj(
     vehicle_chart = []
 
     for vehicle_type_id, count in vehicle_type_counter.items():
+        if count <= 1:
+            continue
         vehicle_chart.append({
             "vehicle_type_id": vehicle_type_id,
-            "name": vehicle_type_names.get(vehicle_type_id) or "Unknown",
+            "name": vehicle_type_names.get(vehicle_type_id) or "E-SCOOTER",
             "count": count,
             "color": vehicle_colors.get(vehicle_type_id) or "#999999"
         })
 
     vehicle_chart.sort(key=lambda x: x["count"], reverse=True)
-    vehicle_chart = vehicle_chart[:limit]
+    # vehicle_chart = vehicle_chart[:limit]
 
     top_total = sum(item["count"] for item in vehicle_chart)
 

@@ -4,7 +4,6 @@ from services import gbfs_service
 from services import nominatim_service
 from visualizations import mapbuilder
 from visualizations.charts import prepare_station_chart_obj, prepare_vehicle_type_chart_obj
-import geocoder
 
 app = Flask(__name__)
 
@@ -26,8 +25,6 @@ VEHICLE_TYPE_COLORS = {
     "Bicycle":     "#BDF6AA"
 }
 DEFAULT_COLOR = "#555555"
-
-myloc = geocoder.ip('me').latlng
 
 @app.route("/health")
 def health_check():
@@ -59,18 +56,33 @@ def index():
     vehicle_type_names  = {}
     station_chart  = []
     chart_obj = {}
+    selected_vehicle_type_ids = []
+    vehicle_filter_applied = False
+    systems = {}
+    selected_system_id=None
 
     if request.method == "POST":
         city      = request.form.get("city", "").strip()
         view_mode = request.form.get("view_mode", "stations")
+        selected_vehicle_type_ids_raw = request.form.get("selected_vehicle_type_ids", "").strip()
+        selected_system_id = request.form.get("selected_system_id", "all").strip()
+        selected_system_id = selected_system_id if selected_system_id != 'None' else None
+        if selected_vehicle_type_ids_raw:
+            selected_vehicle_type_ids = [
+                item for item in selected_vehicle_type_ids_raw.split(",")
+                if item
+            ]
+        vehicle_filter_applied = request.form.get("vehicle_filter_applied") == "1"
 
         if city:
-            system = gbfs_service.get_stations_for_city(city)
+            system = gbfs_service.get_stations_for_city(city_name=city, selected_system_id=selected_system_id if selected_system_id != "all" else None)
             stations = system["stations"]
             if not system:
                 error = f'No bike system found for "{city}". Try another city.'
             else:
                 try:
+                    systemList = system.get("systems")
+                    systems = {system.get("system_id"):system.get("name") for system in systemList}
                     total_stations = system["summary"]["total_stations_returned"]
                     # print(total_stations)
                     if total_stations:
@@ -90,9 +102,13 @@ def index():
                         map_html = mapbuilder.build_map(stations)
 
                         if view_mode == "vehicles":
-                            vehicles, vehicle_type_names, vehicle_types, vehicle_colors = gbfs_service.get_vehicles_for_city(city)
+                            vehicles, vehicle_type_names, vehicle_types, vehicle_colors = gbfs_service.get_vehicles_for_city(city_name=city, selected_system_id=selected_system_id if selected_system_id != "all" else None)
+                            filtered_vehicles = vehicles
+                            if vehicle_filter_applied:
+                                filtered_vehicles = [vehicle for vehicle in vehicles if vehicle.get("vehicle_type_id") in selected_vehicle_type_ids]
+                            
                             map_html = mapbuilder.build_vehicle_map(
-                                vehicles,
+                                filtered_vehicles,
                                 vehicle_colors,
                                 vehicle_type_names,
                                 vehicle_types,
@@ -123,7 +139,11 @@ def index():
         vehicle_colors=vehicle_colors,
         vehicle_type_names=vehicle_type_names,
         station_chart=station_chart,
-        chart_obj=chart_obj
+        chart_obj=chart_obj,
+        selected_vehicle_type_ids=','.join(selected_vehicle_type_ids),
+        vehicle_filter_applied=vehicle_filter_applied,
+        systems=systems,
+        selected_system_id=selected_system_id
     )
 
 
