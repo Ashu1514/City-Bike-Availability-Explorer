@@ -18,7 +18,7 @@ def build_map(stations=[]):
         max_lat = max(s['latitude'] for s in stations)
         min_lon = min(s['longitude'] for s in stations)
         max_lon = max(s['longitude'] for s in stations)
-        padding = 0.02
+        padding = 0.04
 
         sw = [min_lat - padding, min_lon - padding]
         ne = [max_lat + padding, max_lon + padding]
@@ -136,7 +136,7 @@ def build_vehicle_map(vehicles, vehicle_type_colors, vtype_names, vehicle_specs)
     max_lat = max(v["lat"] for v in valid_vehicles)
     min_lon = min(v["lon"] for v in valid_vehicles)
     max_lon = max(v["lon"] for v in valid_vehicles)
-    padding = 0.02
+    padding = 0.04
 
     sw = [min_lat - padding, min_lon - padding]
     ne = [max_lat + padding, max_lon + padding]

@@ -75,23 +75,21 @@ def index():
         vehicle_filter_applied = request.form.get("vehicle_filter_applied") == "1"
 
         if city:
-            system = gbfs_service.get_stations_for_city(city_name=city, selected_system_id=selected_system_id if selected_system_id != "all" else None)
-            stations = system["stations"]
-            if not system:
-                error = f'No bike system found for "{city}". Try another city.'
-            else:
-                try:
+            urls = gbfs_service.find_system_for_city(city)
+            if any(url.get("auto_discovery_url") for url in urls):
+                system = gbfs_service.get_stations_for_city(city_name=city, selected_system_id=selected_system_id if selected_system_id != "all" else None)
+                stations = system["stations"]
+                try : 
                     systemList = system.get("systems")
                     systems = {system.get("system_id"):system.get("name") for system in systemList}
                     total_stations = system["summary"]["total_stations_returned"]
-                    # print(total_stations)
                     if total_stations:
                         total_bikes = system["summary"]["total_available_bikes"]
-                        # print(total_bikes)
+                                # print(total_bikes)
 
 
-                        # Station chart data
-                        # chart_obj = prepare_station_chart_obj(stations)
+                                # Station chart data
+                                # chart_obj = prepare_station_chart_obj(stations)
                         station_chart = [
                             {"name": s['name'], "bikes": s['available_bikes']}
                             for s in stations
@@ -119,11 +117,11 @@ def index():
                             chart_obj = prepare_station_chart_obj(stations)
                     else:
                         error = "Found a system but couldn't load station data."
-
-
                 except Exception as e:
                     error = f"Error loading data: {str(e)}"
                     print(f"Error: {e}")
+            else :
+                error = f'No bike system found for "{city}". Try another city.'
 
 
 
